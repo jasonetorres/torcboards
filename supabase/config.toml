@@ -1,0 +1,6 @@
+[functions]
+[functions.send-welcome-email]
+verify_jwt = false
+
+[functions.send-weekly-recap]
+verify_jwt = false
