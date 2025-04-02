@@ -34,7 +34,7 @@ const Navbar = () => {
             <Link to="/" className="flex items-center space-x-2">
               <Briefcase className="h-6 w-6 text-primary" />
               <span className={`font-bold text-xl ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
-                JobHunt CRM
+                Torcboard CRM
               </span>
             </Link>
           </div>
