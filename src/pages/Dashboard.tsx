@@ -34,6 +34,7 @@ import { VoiceNotesWidget } from '../components/VoiceNotesWidget';
 import { TasksWidget } from '../components/TasksWidget';
 import { ResumeWidget } from '../components/ResumeWidget';
 import type { Database } from '../lib/supabase-types';
+import { Card, CardBody } from "@heroui/react"; // Import Card and CardBody
 
 type Application = Database['public']['Tables']['applications']['Row'];
 type Company = Database['public']['Tables']['companies']['Row'];
@@ -236,95 +237,112 @@ const Dashboard = () => {
   const availableWidgets = widgets.filter((w) => !w.enabled);
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 sm:gap-0">
-        <div className="flex items-center gap-4">
-        <h1 className="text-3xl font-bold text-foreground">Dashboard</h1>
-
-          <button
-            onClick={() => setShowVoiceAssistant(!showVoiceAssistant)}
-            className={`p-2 rounded-full ${
-              showVoiceAssistant
-                ? 'bg-red-500 hover:bg-red-600'
-                : 'bg-primary hover:bg-primary/90'
-            } text-white`}
-            title="Job Buddy Voice Assistant"
-          >
-            <Mic className="h-6 w-6" />
-          </button>
-        </div>
-        <button
-          onClick={() => setIsWidgetMenuOpen(!isWidgetMenuOpen)}
-          className="w-full sm:w-auto bg-primary text-primary-foreground px-4 py-2 rounded-md flex items-center justify-center gap-2"
-        >
-          <Plus className="h-5 w-5" />
-          Add Widget
-        </button>
+    <main className="min-h-screen w-full relative flex items-center justify-center p-4">
+      <div className="fixed inset-0 z-0">
+        <img
+          src="https://img.heroui.chat/image/landscape?w=1920&h=1080&u=1" // Background image from Auth.tsx
+          className="w-full h-full object-cover"
+          alt="Dashboard Background"
+        />
+        <div className="absolute inset-0 bg-background/" />
       </div>
 
-      {showVoiceAssistant && (
-        <div className="fixed inset-x-0 bottom-0 p-4 sm:p-6 bg-card border-t border-border shadow-lg z-50">
-          <div className="max-w-4xl mx-auto">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-semibold">Job Buddy Voice Assistant</h2>
+      <div className="w-full max-w-7xl z-10">
+        <div className="space-y-6">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 sm:gap-0 text-foreground">
+            <div className="flex items-center gap-4">
+              <h1 className="text-3xl font-bold">Dashboard</h1>
+
               <button
-                onClick={() => setShowVoiceAssistant(false)}
-                className="text-muted-foreground hover:text-foreground"
+                onClick={() => setShowVoiceAssistant(!showVoiceAssistant)}
+                className={`p-2 rounded-full ${
+                  showVoiceAssistant
+                    ? 'bg-red-500 hover:bg-red-600'
+                    : 'bg-primary hover:bg-primary/90'
+                } text-white`}
+                title="Job Buddy Voice Assistant"
               >
-                <X className="h-5 w-5" />
+                <Mic className="h-6 w-6" />
               </button>
             </div>
-            <VoiceNotesWidget />
+            <button
+              onClick={() => setIsWidgetMenuOpen(!isWidgetMenuOpen)}
+              className="w-full sm:w-auto bg-primary text-primary-foreground px-4 py-2 rounded-md flex items-center justify-center gap-2"
+            >
+              <Plus className="h-5 w-5" />
+              Add Widget
+            </button>
           </div>
-        </div>
-      )}
 
-      {isWidgetMenuOpen && availableWidgets.length > 0 && (
-        <div className="bg-card text-card-foreground p-4 rounded-lg shadow-md">
-          <h2 className="text-lg font-semibold mb-3">Available Widgets</h2>
-          <div className="flex flex-wrap gap-2">
-            {availableWidgets.map((widget) => (
-              <button
-                key={widget.id}
-                onClick={() => {
-                  toggleWidget(widget.type);
-                  setIsWidgetMenuOpen(false);
-                }}
-                className="bg-muted hover:bg-muted/80 px-3 py-1 rounded-md text-sm"
-              >
-                {widget.type.charAt(0).toUpperCase() + widget.type.slice(1)}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
+          {showVoiceAssistant && (
+            <div className="fixed inset-x-0 bottom-0 p-4 sm:p-6 bg-card border-t border-border shadow-lg z-50">
+              <div className="max-w-4xl mx-auto">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-xl font-semibold">lil torc</h2>
+                  <button
+                    onClick={() => setShowVoiceAssistant(false)}
+                    className="text-muted-foreground hover:text-foreground"
+                  >
+                    <X className="h-5 w-5" />
+                  </button>
+                </div>
+                <VoiceNotesWidget />
+              </div>
+            </div>
+          )}
 
-      <DndContext
-        sensors={sensors}
-        collisionDetection={closestCenter}
-        onDragEnd={handleDragEnd}
-      >
-        <SortableContext
-          items={enabledWidgets.map((w) => w.id)}
-          strategy={verticalListSortingStrategy}
-        >
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 auto-rows-min">
-            {enabledWidgets.map((widget) => (
-              <DashboardWidget
-                key={widget.id}
-                id={widget.id}
-                type={widget.type}
-                size={widget.size}
-                onResize={(size) => resizeWidget(widget.id, size)}
-                onRemove={() => toggleWidget(widget.type)}
-              >
-                {widgetComponents[widget.type]}
-              </DashboardWidget>
-            ))}
-          </div>
-        </SortableContext>
-      </DndContext>
-    </div>
+          {isWidgetMenuOpen && availableWidgets.length > 0 && (
+            <div className="bg-card text-card-foreground p-4 rounded-lg shadow-md">
+              <h2 className="text-lg font-semibold mb-3">Available Widgets</h2>
+              <div className="flex flex-wrap gap-2">
+                {availableWidgets.map((widget) => (
+                  <button
+                    key={widget.id}
+                    onClick={() => {
+                      toggleWidget(widget.type);
+                      setIsWidgetMenuOpen(false);
+                    }}
+                    className="bg-muted hover:bg-muted/80 px-3 py-1 rounded-md text-sm"
+                  >
+                    {widget.type.charAt(0).toUpperCase() + widget.type.slice(1)}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleDragEnd}
+          >
+            <SortableContext
+              items={enabledWidgets.map((w) => w.id)}
+              strategy={verticalListSortingStrategy}
+            >
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 auto-rows-min">
+                {enabledWidgets.map((widget) => (
+                  <DashboardWidget
+                    key={widget.id}
+                    id={widget.id}
+                    type={widget.type}
+                    size={widget.size}
+                    onResize={(size) => resizeWidget(widget.id, size)}
+                    onRemove={() => toggleWidget(widget.type)}
+                  >
+                    <Card shadow="lg"> {/* Wrap each widget in a Card */}
+                      <CardBody className="p-6">
+                        {widgetComponents[widget.type]}
+                      </CardBody>
+                    </Card>
+                  </DashboardWidget>
+                ))}
+              </div>
+            </SortableContext>
+          </DndContext>
+        </div>
+      </div>
+    </main>
   );
 };
 

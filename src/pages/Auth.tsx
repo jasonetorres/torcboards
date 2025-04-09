@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/useAuthStore';
+import { Card, CardBody, Input, Button, Tabs, Tab } from "@heroui/react";
+import { Icon } from "@iconify/react";
 
 const Auth = () => {
-  const [isSignUp, setIsSignUp] = useState(false);
+  const [selected, setSelected] = useState<string>("login");
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [firstName, setFirstName] = useState('');
@@ -17,9 +19,9 @@ const Auth = () => {
     setError('');
 
     try {
-      if (isSignUp) {
+      if (selected === "register") {
         await signUp(email, password, firstName, lastName);
-        setIsSignUp(false);
+        setSelected("login");
       } else {
         await signIn(email, password);
         navigate('/');
@@ -30,86 +32,136 @@ const Auth = () => {
   };
 
   return (
-    <div className="max-w-md mx-auto">
-      <h1 className="text-3xl font-bold mb-6">{isSignUp ? 'Sign Up' : 'Sign In'}</h1>
-      <div className="bg-card text-card-foreground p-6 rounded-lg shadow-md">
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {isSignUp && (
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label htmlFor="firstName" className="block text-sm font-medium mb-1">
-                  First Name
-                </label>
-                <input
-                  id="firstName"
-                  type="text"
-                  value={firstName}
-                  onChange={(e) => setFirstName(e.target.value)}
-                  className="w-full p-2 rounded border border-input bg-background"
-                  required
-                />
-              </div>
-              <div>
-                <label htmlFor="lastName" className="block text-sm font-medium mb-1">
-                  Last Name
-                </label>
-                <input
-                  id="lastName"
-                  type="text"
-                  value={lastName}
-                  onChange={(e) => setLastName(e.target.value)}
-                  className="w-full p-2 rounded border border-input bg-background"
-                  required
-                />
-              </div>
-            </div>
-          )}
-          <div>
-            <label htmlFor="email" className="block text-sm font-medium mb-1">
-              Email
-            </label>
-            <input
-              id="email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full p-2 rounded border border-input bg-background"
-              required
-            />
-          </div>
-          <div>
-            <label htmlFor="password" className="block text-sm font-medium mb-1">
-              Password
-            </label>
-            <input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full p-2 rounded border border-input bg-background"
-              required
-            />
-          </div>
-          {error && <p className="text-destructive text-sm">{error}</p>}
-          <button
-            type="submit"
-            className="w-full bg-primary text-primary-foreground py-2 px-4 rounded-md hover:bg-primary/90"
-          >
-            {isSignUp ? 'Sign Up' : 'Sign In'}
-          </button>
-        </form>
-        <p className="mt-4 text-sm text-center">
-          {isSignUp ? 'Already have an account?' : "Don't have an account?"}{' '}
-          <button
-            onClick={() => setIsSignUp(!isSignUp)}
-            className="text-primary hover:underline"
-          >
-            {isSignUp ? 'Sign In' : 'Sign Up'}
-          </button>
-        </p>
+    <main className="min-h-screen w-full relative flex items-center justify-center p-4">
+      <div className="fixed inset-0 z-0">
+        <img
+          src="https://img.heroui.chat/image/landscape?w=1920&h=1080&u=1"
+          className="w-full h-full object-cover"
+          alt="Background"
+        />
       </div>
-    </div>
+
+      <div className="w-full max-w-md z-10">
+        <div className="text-center mb-8">
+          <div className="flex justify-center mb-4">
+          <div className="p-3 rounded-2xl">
+              <img src="https://i.postimg.cc/pdC9XpGJ/horizontal-black.png" alt="JobTracker Logo" className="h-10 w-auto" />
+            </div>
+          </div>
+          <h1 className="text-3xl font-bold text-foreground mb-2">
+            {selected === "login" ? "Welcome back" : "Create account"}
+          </h1>
+          <p className="text-default-600 text-lg">
+            {selected === "login" 
+              ? "Sign in to continue to torcBoard CRM"
+              : "Sign up to get started with torcBoard CRM"}
+          </p>
+        </div>
+
+        <Card className="w-full" shadow="lg">
+          <CardBody className="p-8">
+            <Tabs 
+              selectedKey={selected} 
+              onSelectionChange={(key) => setSelected(key as string)}
+              className="mb-8"
+              size="lg"
+              color="primary"
+              variant="underlined"
+            >
+              <Tab key="login" title="Login" />
+              <Tab key="register" title="Register" />
+            </Tabs>
+
+            {error && (
+              <div className="mb-4 p-3 rounded bg-danger-50 text-danger text-sm border border-danger">
+                {error}
+              </div>
+            )}
+
+            <form onSubmit={handleSubmit} className="space-y-6">
+              {selected === "register" && (
+                <div className="grid grid-cols-2 gap-4">
+                  <Input
+                    label="First Name"
+                    placeholder="Enter first name"
+                    value={firstName}
+                    onValueChange={setFirstName}
+                    variant="bordered"
+                    radius="lg"
+                    size="lg"
+                    isRequired
+                    startContent={
+                      <Icon icon="lucide:user" className="text-default-400 pointer-events-none flex-shrink-0 text-xl" />
+                    }
+                  />
+                  <Input
+                    label="Last Name"
+                    placeholder="Enter last name"
+                    value={lastName}
+                    onValueChange={setLastName}
+                    variant="bordered"
+                    radius="lg"
+                    size="lg"
+                    isRequired
+                    startContent={
+                      <Icon icon="lucide:user" className="text-default-400 pointer-events-none flex-shrink-0 text-xl" />
+                    }
+                  />
+                </div>
+              )}
+              
+              <Input
+                label="Email"
+                placeholder="Enter your email"
+                type="email"
+                value={email}
+                onValueChange={setEmail}
+                variant="bordered"
+                radius="lg"
+                size="lg"
+                isRequired
+                startContent={
+                  <Icon icon="lucide:mail" className="text-default-400 pointer-events-none flex-shrink-0 text-xl" />
+                }
+              />
+              <Input
+                label="Password"
+                placeholder="Enter your password"
+                type="password"
+                value={password}
+                onValueChange={setPassword}
+                variant="bordered"
+                radius="lg"
+                size="lg"
+                isRequired
+                startContent={
+                  <Icon icon="lucide:lock" className="text-default-400 pointer-events-none flex-shrink-0 text-xl" />
+                }
+              />
+              
+              {selected === "login" && (
+                <div className="flex items-center justify-between pt-2">
+                  <Button variant="light" color="primary" size="sm" className="font-medium p-0">
+                    Forgot password?
+                  </Button>
+                </div>
+              )}
+
+              <Button 
+                type="submit" 
+                color="primary" 
+                className="w-full"
+                size="lg"
+                radius="lg"
+              >
+                {selected === "login" ? "Sign In" : "Create Account"}
+              </Button>
+            </form>
+          </CardBody>
+        </Card>
+      </div>
+    </main>
   );
 };
 
-export default Auth
+export default Auth;
