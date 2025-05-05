@@ -3,9 +3,12 @@ import { useNavigate } from 'react-router-dom';
 import { Card, CardBody, Input, Button, Tabs, Tab } from "@heroui/react";
 import { Icon } from "@iconify/react";
 import { useDispatch } from 'react-redux';
-import { signIn, signUp, clearError } from '../store/authSlice'; // Correct import: authSlice (PascalCase)
+import { signIn, signUp, clearError } from '../store/authSlice';
+import { AppDispatch } from '../store'; // Import your store's AppDispatch type
 
 const Auth = () => {
+  // Use the typed version of useDispatch
+  const dispatch = useDispatch<AppDispatch>();
   const [selected, setSelected] = useState<string>("login");
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -13,7 +16,6 @@ const Auth = () => {
   const [lastName, setLastName] = useState('');
   const [error, setError] = useState('');
   const navigate = useNavigate();
-  const dispatch = useDispatch();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -21,10 +23,10 @@ const Auth = () => {
 
     try {
       if (selected === "register") {
-        dispatch(signUp({ email, password, firstName, lastName }));
+        await dispatch(signUp({ email, password, firstName, lastName }));
         setSelected("login");
       } else {
-        dispatch(signIn({ email, password }));
+        await dispatch(signIn({ email, password }));
         navigate('/');
       }
     } catch (err: any) {
@@ -54,8 +56,8 @@ const Auth = () => {
           </h1>
           <p className="text-default-600 text-lg">
             {selected === "login"
-              ? "Sign in to continue to torcBoard CRM"
-              : "Sign up to get started with torcBoard CRM"}
+              ? "Sign in to continue to JobTracker"
+              : "Sign up to get started with JobTracker"}
           </p>
         </div>
 
