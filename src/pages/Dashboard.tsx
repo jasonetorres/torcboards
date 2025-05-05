@@ -20,7 +20,8 @@ import { ResumeWidget } from '../components/ResumeWidget';
 import type { Database } from '../lib/supabase-types';
 import { Card, CardBody } from "@heroui/react";
 // Ensure WidgetType reflects the updated definition (without 'tasks')
-import { WidgetType, toggleWidget, reorderWidgets, resizeWidget, initializeWidgets, resetStore } from '../store/dashboardSlice';
+// Removed unused imports: initializeWidgets, resetStore
+import { WidgetType, toggleWidget, reorderWidgets, resizeWidget } from '../store/dashboardSlice';
 import type { RootState } from '../store';
 
 type Application = Database['public']['Tables']['applications']['Row'];
@@ -155,7 +156,8 @@ const Dashboard = () => {
 
   // Filter and sort widgets based on Redux state BEFORE rendering
   const enabledWidgets = widgets.filter((w) => w.enabled).sort((a, b) => a.order - b.order);
-  const availableWidgets = widgets.filter((w) => !w.enabled);
+  // Removed unused variable: availableWidgets
+  // const availableWidgets = widgets.filter((w) => !w.enabled);
 
   return (
     <main className="min-h-screen w-full relative flex justify-center px-4 pt-16 pb-16 overflow-x-hidden">
@@ -175,11 +177,28 @@ const Dashboard = () => {
              <button onClick={() => setIsWidgetMenuOpen(!isWidgetMenuOpen)} className="w-full sm:w-auto bg-white/80 backdrop-blur-sm text-black px-4 py-2 rounded-md flex items-center justify-center gap-2 text-sm hover:bg-white/95 transition-colors"> <Plus className="h-4 w-4 sm:h-5 sm:w-5" /> <span>Add Widget</span> </button>
           </div>
 
-          {/* Voice Assistant Panel */}
-          {showVoiceAssistant && ( /* ... voice assistant JSX ... */ )}
+          {/* Voice Assistant Panel - Placeholder */}
+          {showVoiceAssistant && (
+             <div className="bg-card/80 backdrop-blur-sm p-4 rounded-lg shadow-lg text-card-foreground">
+               Voice Assistant Placeholder Content
+             </div>
+          )}
 
-          {/* Available Widgets Menu */}
-          {isWidgetMenuOpen && ( /* ... available widgets JSX ... */ )}
+          {/* Available Widgets Menu - Placeholder */}
+          {isWidgetMenuOpen && (
+             <div className="bg-card/80 backdrop-blur-sm p-4 rounded-lg shadow-lg text-card-foreground">
+                <h2 className="text-lg font-semibold mb-3">Available Widgets</h2>
+                {/* Add logic here to list widgets from `widgets.filter(w => !w.enabled)` and allow adding them */}
+                <p className="text-sm text-muted-foreground">Widget selection menu placeholder.</p>
+                {/* Example button structure: */}
+                {/* {widgets.filter(w => !w.enabled).map(widget => (
+                    <button key={widget.id} onClick={() => dispatch(toggleWidget(widget.type))} className="block w-full text-left p-2 hover:bg-muted rounded">
+                        Add {widget.type} Widget
+                    </button>
+                ))} */}
+                 <button onClick={() => setIsWidgetMenuOpen(false)} className="mt-4 text-primary hover:underline text-sm">Close Menu</button>
+             </div>
+          )}
 
           {/* Drag and Drop Widget Grid */}
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
@@ -202,7 +221,12 @@ const Dashboard = () => {
           </DndContext>
 
            {/* Message if no widgets enabled */}
-           {enabledWidgets.length === 0 && !isWidgetMenuOpen && ( /* ... no widgets message JSX ... */ )}
+           {enabledWidgets.length === 0 && !isWidgetMenuOpen && (
+              <div className="col-span-full text-center py-10 text-muted-foreground bg-card/80 backdrop-blur-sm rounded-lg shadow-lg">
+                 <p>No widgets are currently enabled.</p>
+                 <p>Click "Add Widget" above to add some!</p>
+              </div>
+           )}
         </div>
       </div>
     </main>
