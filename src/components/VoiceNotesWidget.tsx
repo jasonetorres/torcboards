@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import SpeechRecognition, { useSpeechRecognition } from 'react-speech-recognition';
 import { Mic, MicOff, Loader2, Check} from 'lucide-react';
 import * as chrono from 'chrono-node';
 import { supabase } from '../lib/supabase';
-import { useAuthStore } from '../store/useAuthStore';
+import { useSelector } from 'react-redux'; // Import useSelector
 import { format } from 'date-fns';
 
 interface ProcessedNote {
@@ -15,8 +15,8 @@ interface ProcessedNote {
 export function VoiceNotesWidget() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [lastProcessed, setLastProcessed] = useState<ProcessedNote | null>(null);
-  const user = useAuthStore((state) => state.user);
-  
+  const user = useSelector((state: any) => state.auth.user); // Use useSelector
+
   const {
     transcript,
     listening,
@@ -25,13 +25,13 @@ export function VoiceNotesWidget() {
   } = useSpeechRecognition();
 
   const processTranscript = async () => {
-    if (!transcript.trim() || !user) return;
-    
+    if (!transcript.trim() || !user?.id) return;
+
     setIsProcessing(true);
     try {
       const parsedDates = chrono.parse(transcript);
       const lowerTranscript = transcript.toLowerCase();
-      
+
       // Check if this is a task
       if (lowerTranscript.includes('task') || lowerTranscript.includes('todo')) {
         const taskData = {
@@ -71,10 +71,10 @@ export function VoiceNotesWidget() {
         const date = parsedDates[0].start.date();
         const beforeDate = transcript.substring(0, parsedDates[0].index).trim();
         const afterDate = transcript.substring(parsedDates[0].index + parsedDates[0].text.length).trim();
-        
+
         const eventTitle = beforeDate || afterDate;
         const formattedDate = format(date, 'yyyy-MM-dd');
-        
+
         await supabase.from('calendar_events').insert({
           user_id: user.id,
           title: eventTitle,
@@ -106,7 +106,7 @@ export function VoiceNotesWidget() {
     if (!listening && transcript) {
       processTranscript();
     }
-  }, [listening, transcript]);
+  }, [listening, transcript, user]); // Added user to dependency array
 
   if (!browserSupportsSpeechRecognition) {
     return (
@@ -169,13 +169,13 @@ export function VoiceNotesWidget() {
             <div className="bg-muted/50 rounded-lg p-3 animate-fade-in">
               <div className="flex items-center gap-2 text-sm text-green-600 dark:text-green-400 mb-1">
                 <Check className="h-4 w-4" />
-                {lastProcessed.type === 'calendar' ? 'Added to calendar' : 
+                {lastProcessed.type === 'calendar' ? 'Added to calendar' :
                  lastProcessed.type === 'task' ? 'Task created' : 'Note saved'}
               </div>
               <p className="text-sm">{lastProcessed.content}</p>
               {lastProcessed.date && (
                 <p className="text-xs text-muted-foreground mt-1">
-                  Date: {format(lastProcessed.date, 'MMMM d, yyyy')}
+                  Date: {format(lastProcessed.date, 'MMMM d,yyyy')}
                 </p>
               )}
             </div>

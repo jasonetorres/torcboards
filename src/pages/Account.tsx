@@ -2,10 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { User, Settings, Lock, Mail, UserCircle, Bell } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import { useAuthStore } from '../store/useAuthStore';
+import { useSelector } from 'react-redux'; // Import useSelector
+
 
 const Account = () => {
-  const user = useAuthStore((state) => state.user);
+  const user = useSelector((state: any) => state.auth.user); // Use useSelector
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'profile' | 'security' | 'notifications'>('profile');
   const [loading, setLoading] = useState(false);
@@ -13,7 +14,7 @@ const Account = () => {
   const [emailPreferences, setEmailPreferences] = useState({
     weekly_recap: true
   });
-  
+
   const [formData, setFormData] = useState({
     firstName: user?.user_metadata?.first_name || '',
     lastName: user?.user_metadata?.last_name || '',
@@ -150,7 +151,7 @@ const Account = () => {
         type: 'success',
         text: 'Password updated successfully!'
       });
-      
+
       setFormData(prev => ({
         ...prev,
         currentPassword: '',
@@ -379,7 +380,7 @@ const Account = () => {
           {activeTab === 'notifications' && (
             <div className="space-y-6">
               <h2 className="text-lg font-semibold">Email Notifications</h2>
-              
+
               <div className="space-y-4">
                 <div className="flex items-center justify-between p-4 bg-muted rounded-lg">
                   <div>
@@ -397,12 +398,12 @@ const Account = () => {
                       disabled={loading}
                     />
                     <div className={`
-                      w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 
-                      peer-focus:ring-primary/20 rounded-full peer 
-                      peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full 
-                      peer-checked:after:border-white after:content-[''] after:absolute 
-                      after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 
-                      after:border after:rounded-full after:h-5 after:w-5 after:transition-all 
+                      w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4
+                      peer-focus:ring-primary/20 rounded-full peer
+                      peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full
+                      peer-checked:after:border-white after:content-[''] after:absolute
+                      after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300
+                      after:border after:rounded-full after:h-5 after:w-5 after:transition-all
                       peer-checked:bg-primary
                     `}></div>
                   </label>

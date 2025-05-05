@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuthStore } from '../store/useAuthStore';
 import { Card, CardBody, Input, Button, Tabs, Tab } from "@heroui/react";
 import { Icon } from "@iconify/react";
+import { useDispatch } from 'react-redux';
+import { signIn, signUp, clearError } from '../store/authSlice'; // Correct import: authSlice (PascalCase)
 
 const Auth = () => {
   const [selected, setSelected] = useState<string>("login");
@@ -12,7 +13,7 @@ const Auth = () => {
   const [lastName, setLastName] = useState('');
   const [error, setError] = useState('');
   const navigate = useNavigate();
-  const { signIn, signUp } = useAuthStore();
+  const dispatch = useDispatch();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -20,14 +21,14 @@ const Auth = () => {
 
     try {
       if (selected === "register") {
-        await signUp(email, password, firstName, lastName);
+        dispatch(signUp({ email, password, firstName, lastName }));
         setSelected("login");
       } else {
-        await signIn(email, password);
+        dispatch(signIn({ email, password }));
         navigate('/');
       }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
+    } catch (err: any) {
+      setError(err?.message || 'An error occurred');
     }
   };
 
@@ -52,7 +53,7 @@ const Auth = () => {
             {selected === "login" ? "Welcome back" : "Create account"}
           </h1>
           <p className="text-default-600 text-lg">
-            {selected === "login" 
+            {selected === "login"
               ? "Sign in to continue to torcBoard CRM"
               : "Sign up to get started with torcBoard CRM"}
           </p>
@@ -60,9 +61,12 @@ const Auth = () => {
 
         <Card className="w-full" shadow="lg">
           <CardBody className="p-8">
-            <Tabs 
-              selectedKey={selected} 
-              onSelectionChange={(key) => setSelected(key as string)}
+            <Tabs
+              selectedKey={selected}
+              onSelectionChange={(key) => {
+                setSelected(key as string);
+                dispatch(clearError());
+              }}
               className="mb-8"
               size="lg"
               color="primary"
@@ -109,7 +113,7 @@ const Auth = () => {
                   />
                 </div>
               )}
-              
+
               <Input
                 label="Email"
                 placeholder="Enter your email"
@@ -138,7 +142,7 @@ const Auth = () => {
                   <Icon icon="lucide:lock" className="text-default-400 pointer-events-none flex-shrink-0 text-xl" />
                 }
               />
-              
+
               {selected === "login" && (
                 <div className="flex items-center justify-between pt-2">
                   <Button variant="light" color="primary" size="sm" className="font-medium p-0">
@@ -147,9 +151,9 @@ const Auth = () => {
                 </div>
               )}
 
-              <Button 
-                type="submit" 
-                color="primary" 
+              <Button
+                type="submit"
+                color="primary"
                 className="w-full"
                 size="lg"
                 radius="lg"

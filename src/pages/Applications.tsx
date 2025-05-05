@@ -4,17 +4,19 @@ import DatePicker from 'react-datepicker';
 import { format } from 'date-fns';
 import ReactMarkdown from 'react-markdown';
 import { supabase } from '../lib/supabase';
-import { useAuthStore } from '../store/useAuthStore';
+import { useSelector } from 'react-redux'; // Import useSelector
 import { generateSmartReminders } from '../lib/openai';
 import type { Database } from '../lib/supabase-types';
 import "react-datepicker/dist/react-datepicker.css";
 
 type Application = Database['public']['Tables']['applications']['Row'];
+type Company = Database['public']['Tables']['companies']['Row'];
 
 const Applications = () => {
   const [applications, setApplications] = useState<Application[]>([]);
   const [isAdding, setIsAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [companies, setCompanies] = useState<Company[]>([]); // State to hold companies
   const [formData, setFormData] = useState({
     company_name: '',
     position: '',
@@ -23,11 +25,12 @@ const Applications = () => {
     notes: '',
     next_follow_up: null as Date | null
   });
-  const user = useAuthStore((state) => state.user);
+  const user = useSelector((state: any) => state.auth.user); // Use useSelector
 
   useEffect(() => {
     if (user) {
       fetchApplications();
+      fetchCompanies(); // Fetch companies on load
     }
   }, [user]);
 
@@ -47,9 +50,18 @@ const Applications = () => {
     if (data) setApplications(data);
   };
 
+  const fetchCompanies = async () => {
+    const { data } = await supabase
+      .from('companies')
+      .select('*')
+      .eq('user_id', user!.id);
+
+    if (data) setCompanies(data);
+  };
+
   const generateReminders = async (application: Application) => {
     try {
-      const reminders = await generateSmartReminders(new Date(), [application]);
+      const reminders = await generateSmartReminders(new Date(), [application], companies); // Pass companies
       const { error } = await supabase
         .from('applications')
         .update({
@@ -72,15 +84,15 @@ const Applications = () => {
 
     try {
       // First, create or find the company
-      const { data: companies } = await supabase
+      const { data: existingCompanies } = await supabase
         .from('companies')
         .select('id, name')
         .eq('name', formData.company_name)
         .eq('user_id', user.id);
 
       let company_id;
-      
-      if (!companies || companies.length === 0) {
+
+      if (!existingCompanies || existingCompanies.length === 0) {
         // Company doesn't exist, create it
         const { data: newCompany, error: createError } = await supabase
           .from('companies')
@@ -95,7 +107,7 @@ const Applications = () => {
         if (createError) throw createError;
         company_id = newCompany.id;
       } else {
-        company_id = companies[0].id;
+        company_id = existingCompanies[0].id;
       }
 
       const applicationData = {
@@ -108,6 +120,7 @@ const Applications = () => {
         user_id: user.id
       };
 
+      let updatedApplication;
       if (editingId) {
         const { error: updateError, data } = await supabase
           .from('applications')
@@ -121,7 +134,8 @@ const Applications = () => {
 
         if (!updateError && data) {
           setEditingId(null);
-          generateReminders(data);
+          updatedApplication = data;
+          generateReminders(updatedApplication);
           fetchApplications();
         }
       } else {
@@ -133,7 +147,8 @@ const Applications = () => {
 
         if (!insertError && data) {
           setIsAdding(false);
-          generateReminders(data);
+          updatedApplication = data;
+          generateReminders(updatedApplication);
           fetchApplications();
         }
       }
@@ -189,7 +204,9 @@ const Applications = () => {
   };
 
   return (
+    
     <div>
+
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold">Job Applications</h1>
         <button
@@ -260,7 +277,7 @@ const Applications = () => {
                 selected={formData.applied_date}
                 onChange={(date) => setFormData({ ...formData, applied_date: date })}
                 className="w-full p-2 rounded border border-input bg-background"
-                dateFormat="MMM d, yyyy"
+                dateFormat="MMM d,yyyy"
                 isClearable
               />
             </div>
@@ -272,7 +289,7 @@ const Applications = () => {
                 selected={formData.next_follow_up}
                 onChange={(date) => setFormData({ ...formData, next_follow_up: date })}
                 className="w-full p-2 rounded border border-input bg-background"
-                dateFormat="MMM d, yyyy"
+                dateFormat="MMM d,yyyy"
                 isClearable
               />
             </div>
@@ -351,7 +368,7 @@ const Applications = () => {
                 <div className="flex items-center gap-2">
                   <CalendarIcon className="h-4 w-4 text-muted-foreground" />
                   <span className="text-sm">
-                    Applied: {format(new Date(application.applied_date), 'MMM d, yyyy')}
+                    Applied: {format(new Date(application.applied_date), 'MMM d,yyyy')}
                   </span>
                 </div>
               )}
@@ -359,7 +376,7 @@ const Applications = () => {
                 <div className="flex items-center gap-2">
                   <CalendarIcon className="h-4 w-4 text-muted-foreground" />
                   <span className="text-sm">
-                    Follow-up: {format(new Date(application.next_follow_up), 'MMM d, yyyy')}
+                    Follow-up: {format(new Date(application.next_follow_up), 'MMM d,yyyy')}
                   </span>
                 </div>
               )}

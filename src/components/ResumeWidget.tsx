@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { FileText, Upload, RefreshCw } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { FileText, Upload, RefreshCw } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import { useAuthStore } from '../store/useAuthStore';
+import { useSelector } from 'react-redux'; // Import useSelector
 
 export function ResumeWidget() {
   const [resumeContent, setResumeContent] = useState('');
   const [targetRole, setTargetRole] = useState('');
   const [uploading, setUploading] = useState(false);
-  const user = useAuthStore((state) => state.user);
+  const user = useSelector((state: any) => state.auth.user); // Use useSelector
 
   useEffect(() => {
     if (user) {
@@ -36,7 +36,7 @@ export function ResumeWidget() {
     setUploading(true);
     try {
       const text = await file.text();
-      
+
       await supabase
         .from('resumes')
         .upsert({

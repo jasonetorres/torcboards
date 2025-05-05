@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import Calendar from 'react-calendar';
-import { format, parseISO } from 'date-fns';
+import { format } from 'date-fns';
 import { CalendarIcon, RefreshCw, X, Check } from 'lucide-react';
 import { generateSmartReminders, generateJobHuntingSchedule } from '../lib/openai';
 import { supabase } from '../lib/supabase';
@@ -22,7 +22,7 @@ interface CalendarEvent {
   completed: boolean;
 }
 
-export function AICalendarWidget({ applications, companies }: AICalendarWidgetProps) {
+export default function AICalendarWidget({ applications, companies }: AICalendarWidgetProps) {
   const [date, setDate] = useState(new Date());
   const [reminders, setReminders] = useState<string>('');
   const [schedule, setSchedule] = useState<string>('');
@@ -54,7 +54,7 @@ export function AICalendarWidget({ applications, companies }: AICalendarWidgetPr
     setLoading(true);
     setShowTaskCard(true);
     try {
-      const remindersContent = await generateSmartReminders(newDate, applications);
+      const remindersContent = await generateSmartReminders(newDate, applications, companies);
       setReminders(remindersContent || '');
       await fetchCalendarEvents();
     } catch (error) {
@@ -85,14 +85,14 @@ export function AICalendarWidget({ applications, companies }: AICalendarWidgetPr
       .update({ completed })
       .eq('id', eventId)
       .eq('user_id', user.user.id);
-    
+
     await fetchCalendarEvents();
   };
 
   const tileContent = ({ date: tileDate }: { date: Date }) => {
     const dateStr = format(tileDate, 'yyyy-MM-dd');
     const dayEvents = events.filter(event => event.event_date === dateStr);
-    
+
     if (dayEvents.length === 0) return null;
 
     return (
@@ -145,7 +145,7 @@ export function AICalendarWidget({ applications, companies }: AICalendarWidgetPr
             tileClassName={tileClassName}
             className="w-full border rounded-lg shadow-sm bg-card p-4"
           />
-          
+
           <div className="mt-4 flex gap-4 text-sm">
             <div className="flex items-center gap-2">
               <div className="w-3 h-3 rounded-full bg-blue-500"></div>
@@ -163,7 +163,7 @@ export function AICalendarWidget({ applications, companies }: AICalendarWidgetPr
             <div className="bg-card rounded-lg shadow-md p-6 border border-border">
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-lg font-semibold">
-                  Tasks for {format(date, 'MMMM d, yyyy')}
+                  Tasks for {format(date, 'MMMM d,yyyy')}
                 </h3>
                 <button
                   onClick={() => setShowTaskCard(false)}
@@ -172,7 +172,7 @@ export function AICalendarWidget({ applications, companies }: AICalendarWidgetPr
                   <X className="h-5 w-5" />
                 </button>
               </div>
-              
+
               {loading ? (
                 <div className="flex items-center justify-center py-8">
                   <RefreshCw className="h-6 w-6 animate-spin text-primary" />

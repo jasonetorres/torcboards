@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, ExternalLink, Pencil, Trash2, User } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import { useAuthStore } from '../store/useAuthStore';
+import { useSelector } from 'react-redux'; // Import useSelector
 import { suggestNetworkingActions } from '../lib/openai';
 import type { Database } from '../lib/supabase-types';
 
@@ -21,7 +21,7 @@ const TargetCompanies = () => {
     contact_phone: '',
     contact_role: ''
   });
-  const user = useAuthStore((state) => state.user);
+  const user = useSelector((state: any) => state.auth.user); // Use useSelector
 
   useEffect(() => {
     if (user) {

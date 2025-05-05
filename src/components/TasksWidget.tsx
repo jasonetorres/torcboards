@@ -1,16 +1,16 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { CheckSquare, Circle, CheckCircle2, ArrowUpCircle, MinusCircle, ArrowDownCircle } from 'lucide-react';
 import { format } from 'date-fns';
 import { supabase } from '../lib/supabase';
-import { useAuthStore } from '../store/useAuthStore';
+import { useSelector } from 'react-redux'; // Import useSelector
 import type { Database } from '../lib/supabase-types';
 
 type Task = Database['public']['Tables']['tasks']['Row'];
 
 export function TasksWidget() {
   const [tasks, setTasks] = useState<Task[]>([]);
-  const user = useAuthStore((state) => state.user);
+  const user = useSelector((state: any) => state.auth.user); // Use useSelector
 
   useEffect(() => {
     if (user) {
@@ -24,14 +24,14 @@ export function TasksWidget() {
       .select('*')
       .eq('user_id', user!.id)
       .order('due_date', { ascending: true })
-      .limit(5);
+      .limit(5); // Limiting to 5 for the widget
 
     if (data) setTasks(data);
   };
 
   const toggleComplete = async (task: Task) => {
     const newStatus = task.status === 'completed' ? 'pending' : 'completed';
-    
+
     const { error } = await supabase
       .from('tasks')
       .update({
@@ -52,7 +52,7 @@ export function TasksWidget() {
           .eq('title', `Task Due: ${task.title}`)
           .eq('event_date', task.due_date);
       }
-      
+
       fetchTasks();
     }
   };
@@ -118,3 +118,5 @@ export function TasksWidget() {
     </>
   );
 }
+
+export default TasksWidget;

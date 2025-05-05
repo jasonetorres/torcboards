@@ -1,5 +1,6 @@
 import OpenAI from 'openai';
 import { supabase } from './supabase';
+import { format } from 'date-fns';
 
 // Only initialize OpenAI if we have an API key
 const openai = new OpenAI({
@@ -235,14 +236,16 @@ Format the response in clear markdown with specific times and actions.`
   }
 }
 
-export async function generateSmartReminders(date: Date, applications: any[]) {
+export async function generateSmartReminders(date: Date, applications: any[], companies: any[]) {
   if (!isOpenAIConfigured()) {
     return "OpenAI API key not configured. Please add your API key to continue using AI features.";
   }
 
   try {
     const formattedDate = date.toISOString().split('T')[0];
-    
+    const companyNames = companies.map((company: any) => company.name).join(', ');
+    const upcomingFollowUps = applications.filter((app: any) => app.next_follow_up && format(new Date(app.next_follow_up), 'yyyy-MM-dd') === formattedDate);
+
     const response = await openai.chat.completions.create({
       model: "gpt-4",
       messages: [
@@ -250,27 +253,30 @@ export async function generateSmartReminders(date: Date, applications: any[]) {
           role: "system",
           content: `You are an AI assistant specializing in job search optimization. Create clear, actionable reminders that:
 - Focus on specific actions and dates
-- Never mention company names or IDs
+- The date for all reminders should be ONLY ${formattedDate}
+- Limit the total number of tasks generated for this day to a maximum of 2 or 3
+- Prioritize tasks based on upcoming follow-ups from your applications: ${upcomingFollowUps.map((app: any) => app.position).join(', ') || 'No follow-ups today'} and research on your target companies: ${companyNames || 'No target companies specified'}
+- Never mention company names or IDs directly in the task titles
 - Use clear, concise language
-- Format output in JSON for easy parsing
+- Format output in JSON for easy parsing with "type", "title", "date" (YYYY-MM-DD), and "description" keys in the "tasks" array
 - Include only relevant, actionable items for the specific date`
         },
         {
           role: "user",
-          content: `For ${formattedDate}, generate reminders in this JSON format:
+          content: `Generate reminders in this JSON format:
 {
   "tasks": [
     {
       "type": "follow_up",
-      "title": "Follow-up on Position A via email",
-      "date": "2025-03-10",
-      "description": "Send follow-up email regarding application status"
+      "title": "Follow up on a specific application",
+      "date": "${formattedDate}",
+      "description": "Send a follow-up email."
     },
     {
-      "type": "interview_prep",
-      "title": "Prepare for technical interview",
-      "date": "2025-03-12",
-      "description": "Review common technical questions and prepare examples"
+      "type": "research",
+      "title": "Research a target company",
+      "date": "${formattedDate}",
+      "description": "Learn more about their recent activities."
     }
   ]
 }`
@@ -287,7 +293,7 @@ export async function generateSmartReminders(date: Date, applications: any[]) {
     if (jsonResponse.tasks && jsonResponse.tasks.length > 0) {
       const user = (await supabase.auth.getUser()).data.user;
       if (user) {
-        const events = jsonResponse.tasks.map((task: any) => ({
+        const events = jsonResponse.tasks.slice(0, 3).map((task: any) => ({
           user_id: user.id,
           title: task.title,
           description: task.description,
@@ -344,12 +350,16 @@ export async function generateSmartReminders(date: Date, applications: any[]) {
   }
 }
 
-export async function suggestNetworkingActions(companies: any[]) {
+export async function suggestNetworkingActions(applications: any[], companies: any[]) {
   if (!isOpenAIConfigured()) {
     return "OpenAI API key not configured. Please add your API key to continue using AI features.";
   }
 
   try {
+    const companyIndustries = [...new Set(companies.map((company: any) => company.industry).filter(Boolean))].join(', ');
+    const companyTypes = [...new Set(companies.map((company: any) => company.type).filter(Boolean))].join(', ');
+    const upcomingFollowUps = applications.filter((app: any) => app.next_follow_up).length;
+
     const response = await openai.chat.completions.create({
       model: "gpt-4",
       messages: [
@@ -359,13 +369,13 @@ export async function suggestNetworkingActions(companies: any[]) {
         },
         {
           role: "user",
-          content: `Based on the target companies, suggest networking actions:
+          content: `Based on the target companies (industries: ${companyIndustries}, types: ${companyTypes}) and the number of upcoming follow-ups (${upcomingFollowUps}), suggest networking actions:
 
 1. Industry-specific networking opportunities
-2. Professional events and meetups
-3. Informational interview strategies
-4. LinkedIn connection approaches
-5. Professional organization recommendations
+2. Professional events and meetups related to these industries
+3. Informational interview strategies focusing on these types of companies
+4. LinkedIn connection approaches targeting professionals in these industries or at these types of companies
+5. Professional organization recommendations relevant to these industries
 
 Format suggestions in clear, actionable bullet points.`
         }

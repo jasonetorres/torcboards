@@ -1,14 +1,21 @@
-const {heroui} = require('@heroui/theme');
+// Import the HeroUI theme plugin using CommonJS require
+const { heroui } = require('@heroui/theme');
+
 /** @type {import('tailwindcss').Config} */
 export default {
+  // Files and paths where Tailwind should scan for class names
   content: [
-    "./index.html",
-    "./src/**/*.{js,ts,jsx,tsx}",
+    "./index.html", // Scan the main HTML file
+    "./src/**/*.{js,ts,jsx,tsx}", // Scan all JS/TS/JSX/TSX files in the src directory
+    // This ensures Tailwind generates CSS for classes used within HeroUI components.
     "./node_modules/@heroui/theme/dist/**/*.{js,ts,jsx,tsx}"
   ],
+  // Enable dark mode using a class (e.g., <html class="dark">)
   darkMode: 'class',
   theme: {
+    // Extend the default Tailwind theme
     extend: {
+      // Custom color palette using CSS variables for theming
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
@@ -44,6 +51,7 @@ export default {
           foreground: "hsl(var(--card-foreground))",
         },
       },
+      // Custom border radius values using CSS variables
       borderRadius: {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
@@ -51,5 +59,9 @@ export default {
       },
     },
   },
-  plugins: [heroui()],
+  // Register Tailwind plugins
+  plugins: [
+    // Add the HeroUI theme plugin
+    heroui()
+  ],
 };
