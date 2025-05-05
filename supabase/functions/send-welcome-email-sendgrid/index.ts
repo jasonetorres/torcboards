@@ -57,28 +57,37 @@ serve(async (req) => {
 
     const welcomeMessage = response.choices[0].message.content
 
-    // Send email using Resend
-    const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')
+    // Send email using SendGrid
+    const SENDGRID_API_KEY = Deno.env.get('SENDGRID_API_KEY')
     
-    if (!RESEND_API_KEY) {
-      throw new Error('Missing Resend API key')
+    if (!SENDGRID_API_KEY) {
+      throw new Error('Missing SendGrid API key')
     }
 
-    const res = await fetch('https://api.resend.com/emails', {
+    const res = await fetch('https://api.sendgrid.com/v3/mail/send', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${RESEND_API_KEY}`,
+        'Authorization': `Bearer ${SENDGRID_API_KEY}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        from: 'Job Hunt CRM <welcome@jobhuntcrm.com>',
-        to: email,
-        subject: `Welcome to Job Hunt CRM, ${first_name}! 🚀`,
-        html: `
-          <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
-            ${welcomeMessage}
-          </div>
-        `,
+        personalizations: [
+          {
+            to: [{ email: email }],
+            subject: `Welcome to Job Hunt CRM, ${first_name}! 🚀`,
+          }
+        ],
+        from: { email: 'jason@teamtorc.com', name: 'Job Hunt CRM' },
+        content: [
+          {
+            type: 'text/html',
+            value: `
+              <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
+                ${welcomeMessage}
+              </div>
+            `
+          }
+        ]
       }),
     })
 

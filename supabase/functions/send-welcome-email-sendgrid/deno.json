@@ -1,0 +1,21 @@
+{
+  "tasks": {
+    "start": "deno run --allow-net --allow-env index.ts"
+  },
+  "fmt": {
+    "exclude": ["README.md", ".git", "supabase"]
+  },
+  "lint": {
+    "rules": {
+      "include": ["camelcase", "explicit-function-return-type"],
+      "exclude": ["no-explicit-any"]
+    }
+  },
+  "compilerOptions": {
+    "allowJs": true,
+    "strict": true
+  },
+  "imports": {
+    "std/": "https://deno.land/std@0.168.0/"
+  }
+}
