@@ -1,22 +1,35 @@
 {
   "compilerOptions": {
     "target": "ES2022",
-    "lib": ["ES2023"],
+    "lib": ["ES2023", "DOM", "DOM.Iterable"], // Added DOM libraries, often needed for web projects
     "module": "ESNext",
     "skipLibCheck": true,
 
     /* Bundler mode */
     "moduleResolution": "bundler",
     "allowImportingTsExtensions": true,
+    "resolveJsonModule": true, // Often useful in modern JS/TS projects
     "isolatedModules": true,
     "moduleDetection": "force",
-    "noEmit": true,
+    "jsx": "react-jsx", // Added JSX configuration, crucial for React
 
     /* Linting */
     "strict": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
-    "noFallthroughCasesInSwitch": true
+    "noFallthroughCasesInSwitch": true,
+
+    /* Path Aliases - ADDED */
+    "baseUrl": ".", // Sets the base directory for path resolution
+    "paths": {
+      "@/*": ["./src/*"] // Defines the '@/' alias pointing to the src directory
+    }
+    /* End Path Aliases */
   },
-  "include": ["vite.config.ts"]
+  "include": [
+     "src", // Include all files in the src directory
+     "vite.config.ts" // Keep your Vite config included
+     // You might need to add other specific files/patterns if they live outside 'src'
+    ],
+  "references": [{ "path": "./tsconfig.node.json" }]
 }

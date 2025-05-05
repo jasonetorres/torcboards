@@ -1,80 +1,141 @@
-.react-calendar {
-  width: 100%;
-  border: none;
-  font-family: inherit;
+.calendar-container .fc { /* Target FullCalendar within your container */
+  font-size: 0.9rem; /* Adjust base font size if needed */
+  background-color: hsl(var(--card)); /* Match card background */
+  color: hsl(var(--card-foreground));
+  border: none; /* Remove default FullCalendar border if using card border */
 }
 
-.react-calendar__tile {
-  position: relative;
-  height: 40px;
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-start;
-  align-items: center;
-  padding-top: 8px;
+/* Header */
+.calendar-container .fc-header-toolbar {
+  margin-bottom: 1rem;
+  padding: 0 0.5rem;
+  color: hsl(var(--foreground));
+}
+.calendar-container .fc-button { /* Style Prev/Next/Today buttons */
+    background-color: hsl(var(--primary));
+    border: none;
+    color: hsl(var(--primary-foreground));
+    opacity: 0.9;
+    transition: opacity 0.2s ease-in-out;
+}
+.calendar-container .fc-button:hover {
+    opacity: 1;
+}
+.calendar-container .fc-button:disabled {
+    opacity: 0.6;
+}
+.calendar-container .fc-toolbar-title { /* Style title */
+  font-size: 1.25em;
+  font-weight: 600;
 }
 
-.react-calendar__tile.has-events {
-  font-weight: bold;
-  color: var(--primary);
+/* Day Headers (Mon, Tue, etc.) */
+.calendar-container .fc-col-header-cell {
+    background-color: hsl(var(--muted)/0.5);
+    color: hsl(var(--muted-foreground));
+    border: 1px solid hsl(var(--border));
+    font-weight: 500;
 }
 
-.event-dots {
-  display: flex;
-  gap: 2px;
-  justify-content: center;
-  margin-top: 4px;
+/* Day Cells */
+.calendar-container .fc-daygrid-day {
+    border: 1px solid hsl(var(--border));
+    transition: background-color 0.1s ease-in-out;
+}
+.calendar-container .fc-daygrid-day:hover {
+    background-color: hsl(var(--muted)/0.6);
+}
+.calendar-container .fc-day-today { /* Style Today's date */
+  background-color: hsl(var(--primary)/0.1);
+}
+.calendar-container .fc-daygrid-day-number {
+  padding: 0.3em;
+  color: hsl(var(--foreground));
 }
 
-.event-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background-color: rgb(59, 130, 246);
+/* Event Styling */
+.fc-event {
+  border: none !important; /* Override default border */
+  cursor: pointer;
+  margin-bottom: 3px;
+  padding: 2px 4px;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  overflow: hidden;
 }
 
-.event-dot.completed {
-  background-color: rgb(34, 197, 94);
+/* Ensure hover trigger fills event space if needed */
+.fc-event-trigger {
+    display: block;
+    width: 100%;
+    height: 100%;
 }
 
-.react-calendar__tile:enabled:hover,
-.react-calendar__tile:enabled:focus {
-  background-color: rgba(59, 130, 246, 0.1);
+/* Styling for custom event content structure (dot + title) */
+.fc-event-title-container {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    width: 100%;
+    overflow: hidden;
 }
 
-.react-calendar__tile--active {
-  background-color: rgba(59, 130, 246, 0.2) !important;
+.fc-event-main-title {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex-grow: 1;
 }
 
-.react-calendar__tile--now {
-  background-color: rgba(59, 130, 246, 0.05);
+.fc-event-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    /* Background color set via className below */
 }
 
-.react-calendar__navigation button:enabled:hover,
-.react-calendar__navigation button:enabled:focus {
-  background-color: rgba(59, 130, 246, 0.1);
+
+/* Status-specific event styles */
+.fc-event-pending {
+  background-color: hsl(var(--primary)/0.15) !important; /* Use theme colors */
+  color: hsl(var(--primary)) !important;
+}
+.fc-event-pending .fc-event-dot {
+  background-color: hsl(var(--primary));
 }
 
-.schedule-card {
-  max-height: 400px;
-  overflow-y: auto;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(0, 0, 0, 0.2) transparent;
+.fc-event-completed {
+  background-color: hsl(var(--success)/0.15) !important; /* Uses the --success var defined in index.css */
+  color: hsl(var(--success)) !important;
+  opacity: 0.8; /* Slightly faded */
+}
+.fc-event-completed .fc-event-dot {
+  background-color: hsl(var(--success));
+}
+.fc-event-completed .fc-event-main-title {
+    text-decoration: line-through;
 }
 
-.schedule-card::-webkit-scrollbar {
-  width: 6px;
+
+/* Styles potentially unrelated to FullCalendar but included in your snippet */
+
+/* Schedule Card Markdown */
+.schedule-card h1,
+.schedule-card h2,
+.schedule-card h3 {
+  margin-bottom: 0.5em; /* Adjust spacing */
 }
 
-.schedule-card::-webkit-scrollbar-track {
-  background: transparent;
+/* Sticky side card - basic */
+.sticky {
+    position: sticky;
+    top: 1rem; /* Adjust top offset as needed */
+    /* Ensure it has a background to avoid showing content scrolling behind */
+    /* background-color: hsl(var(--card)); If not already handled by parent */
 }
 
-.schedule-card::-webkit-scrollbar-thumb {
-  background-color: rgba(0, 0, 0, 0.2);
-  border-radius: 3px;
-}
-
-.dark .schedule-card::-webkit-scrollbar-thumb {
-  background-color: rgba(255, 255, 255, 0.2);
+/* Ensure HoverCard content appears above FullCalendar */
+[data-radix-hover-card-content] {
+    z-index: 50; /* Or higher if needed */
 }

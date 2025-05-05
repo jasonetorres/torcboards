@@ -1,6 +1,6 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 
-export type WidgetType = 'quote' | 'calendar' | 'applications' | 'companies' | 'followUps' | 'pomodoro' | 'aiCalendar' | 'aiSchedule' | 'voiceNotes' | 'tasks' | 'resume';
+export type WidgetType = 'quote'| 'applications' | 'companies' | 'followUps' | 'pomodoro' | 'aiCalendar' | 'aiSchedule' | 'voiceNotes' | 'tasks' | 'resume';
 
 interface Widget {
   id: string;
@@ -25,8 +25,6 @@ const defaultWidgets: Widget[] = [
   { id: 'pomodoro', type: 'pomodoro', enabled: false, order: 4, size: { cols: 1, rows: 1 } },
   { id: 'aiCalendar', type: 'aiCalendar', enabled: true, order: 5, size: { cols: 2, rows: 1 } },
   { id: 'aiSchedule', type: 'aiSchedule', enabled: false, order: 6, size: { cols: 1, rows: 1 } },
-  { id: 'voiceNotes', type: 'voiceNotes', enabled: false, order: 7, size: { cols: 1, rows: 1 } },
-  { id: 'tasks', type: 'tasks', enabled: false, order: 8, size: { cols: 1, rows: 1 } },
   { id: 'resume', type: 'resume', enabled: true, order: 9, size: { cols: 1, rows: 1 } }
 ];
 
