@@ -1,7 +1,7 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 
 // --- Types and Initial State (Unchanged) ---
-export type WidgetType = 'quote'| 'applications' | 'companies' | 'followUps' | 'pomodoro' | 'aiCalendar' | 'aiSchedule' | 'voiceNotes' | 'tasks' | 'resume';
+export type WidgetType = 'quote'| 'applications' | 'companies' | 'followUps' | 'pomodoro' | 'aiCalendar'| 'tasks' | 'resume'; //'voiceNotes' add this back
 
 interface Widget {
   id: string;
@@ -26,10 +26,8 @@ const defaultWidgets: Widget[] = [
   { id: 'followUps', type: 'followUps', enabled: true, order: 3, size: { cols: 1, rows: 1 } },
   { id: 'aiCalendar', type: 'aiCalendar', enabled: true, order: 4, size: { cols: 2, rows: 2 } }, // Adjusted default size example
   { id: 'resume', type: 'resume', enabled: true, order: 5, size: { cols: 1, rows: 2 } }, // Adjusted default size example
-  // --- Disabled by default ---
   { id: 'pomodoro', type: 'pomodoro', enabled: false, order: 6, size: { cols: 1, rows: 1 } },
-  { id: 'aiSchedule', type: 'aiSchedule', enabled: false, order: 7, size: { cols: 1, rows: 1 } },
-  { id: 'voiceNotes', type: 'voiceNotes', enabled: false, order: 8, size: { cols: 1, rows: 1 } },
+  //{ id: 'voiceNotes', type: 'voiceNotes', enabled: false, order: 8, size: { cols: 6, rows: 6 } },
   { id: 'tasks', type: 'tasks', enabled: false, order: 9, size: { cols: 1, rows: 1 } }, // Assuming tasks might exist
 ];
 
@@ -55,11 +53,9 @@ export const dashboardSlice = createSlice({
       const widget = state.widgets.find(w => w.type === action.payload);
       if (widget) {
         widget.enabled = !widget.enabled;
-        // Ensure size exists when toggling
         widget.size = widget.size || { cols: 1, rows: 1 };
       }
-      // Optional: Re-calculate order for all widgets after toggle if needed,
-      // but usually only reorderWidgets needs to manage order.
+
     },
     // --- CORRECTED reorderWidgets Reducer ---
     reorderWidgets: (state, action: PayloadAction<Widget[]>) => {
