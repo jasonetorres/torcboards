@@ -1,7 +1,7 @@
 import React, { useState, useEffect, Suspense } from 'react';
 import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
-import { ThemeProvider, createTheme } from '@mui/material/styles'; // Import ThemeProvider and createTheme
-import CssBaseline from '@mui/material/CssBaseline'; // Optional: for baseline styling normalization
+import { ThemeProvider, createTheme } from '@mui/material/styles';
+import CssBaseline from '@mui/material/CssBaseline';
 import Auth from './pages/Auth';
 import Dashboard from './pages/Dashboard';
 import Applications from './pages/Applications';
@@ -11,49 +11,45 @@ import AITools from './pages/AITools';
 import Tasks from './pages/Tasks';
 import ResumePage from './pages/Resume';
 import Account from './pages/Account';
-import ResumeView from './pages/Resume'; // Assuming ResumeView is correct, maybe alias ResumePage?
+// Removed duplicate ResumeView import if ResumePage is the correct one
+// import ResumeView from './pages/Resume';
 import Navbar from './components/Navbar';
 import Snackbar from '@mui/material/Snackbar';
 import Alert from '@mui/material/Alert';
 import { useDispatch, useSelector } from 'react-redux';
 import { setUser } from './store/authSlice';
 import { supabase } from './lib/supabase';
-import type { RootState } from './store'; // Import RootState for typed useSelector
+import type { RootState } from './store';
+// Import or create a simple Loading component
+import LoadingSpinner from '../src/components/LoadingSpinner'; // Make sure you have this component
 
-// Define a basic theme (you can customize this later)
 const theme = createTheme({
-  // Example customization:
-  // palette: {
-  //   mode: 'light', // or 'dark'
-  // },
+  // Your theme customizations
 });
 
-// AuthGuard remains the same
+// AuthGuard remains the same - it relies on Redux state being correct
 const AuthGuard = ({ children }: { children: React.ReactNode }) => {
-  // Use RootState type for useSelector
   const user = useSelector((state: RootState) => state.auth.user);
   const navigate = useNavigate();
   const location = useLocation();
 
   useEffect(() => {
-    // No change needed here, but ensure '/auth' logic is exactly as intended
+    // This logic is now safe because App waits for auth check
     if (!user && location.pathname !== '/auth') {
-      // Redirect to '/auth' if not authenticated and not already on '/auth'
-      navigate('/auth', { replace: true }); // Using replace: true is often good practice here
+      console.log('AuthGuard: No user found, redirecting to /auth');
+      navigate('/auth', { replace: true });
     }
-    // If user IS authenticated and tries to access '/auth', you might want to redirect them away
+    // Optional: Redirect logged-in users away from /auth
     // else if (user && location.pathname === '/auth') {
-    //   navigate('/', { replace: true }); // Redirect to dashboard or home
+    //   console.log('AuthGuard: User found, redirecting from /auth to /');
+    //   navigate('/', { replace: true });
     // }
   }, [user, navigate, location]);
 
-  // Render children only if user exists when not on auth page.
-  // If on auth page, it should render regardless (handled by Route itself)
-  // Or simpler: let the Route handle rendering Auth page, guard protects others.
-  // Render children if user exists OR if it's the auth page itself being rendered through the guard (unlikely setup)
-  // Let's assume AuthGuard only wraps protected routes as intended.
+  // If checks are still running higher up, this might not even render yet.
+  // If redirecting, return null to prevent rendering children briefly.
   if (!user && location.pathname !== '/auth') {
-     return null; // Don't render children if redirecting
+     return null;
   }
 
   return <>{children}</>; // Render protected content
@@ -65,32 +61,42 @@ function App() {
   const isAuthPage = location.pathname === '/auth';
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState<string | null>(null);
-  // Adjusted type to match Alert's severity prop more closely
   const [snackbarSeverity, setSnackbarSeverity] = useState<'success' | 'error' | 'info' | 'warning' | undefined>(undefined);
   const dispatch = useDispatch();
 
+  // --- State to track if initial auth check is complete ---
+  const [isAuthCheckComplete, setIsAuthCheckComplete] = useState(false);
+  // ---------------------------------------------------------
+
   useEffect(() => {
-    // Fetch initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      dispatch(setUser(session?.user ?? null));
-    }).catch(error => console.error("Error getting session:", error)); // Add error handling
+    // No need to manually call getSession() here,
+    // onAuthStateChange handles the initial check automatically.
 
     // Listen for auth state changes
-    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log(`Supabase Auth Event: ${event}`, session);
+      // Update user state in Redux
       dispatch(setUser(session?.user ?? null));
-      // Optionally show snackbar on login/logout?
-      // if (_event === 'SIGNED_IN') showSnackbar('Logged in successfully!', 'success');
-      // if (_event === 'SIGNED_OUT') showSnackbar('Logged out.', 'info');
+
+      // --- Mark the initial auth check as complete ---
+      // This runs once when the listener is first attached and Supabase
+      // has checked localStorage/confirmed the initial state.
+      // It also runs on subsequent SIGNED_IN/SIGNED_OUT events.
+      setIsAuthCheckComplete(true);
+      // -------------------------------------------------
+
+      // Example snackbar logic based on events:
+      // if (event === 'SIGNED_IN') showSnackbar('Logged in successfully!', 'success');
+      // if (event === 'SIGNED_OUT') showSnackbar('Logged out.', 'info');
     });
 
     // Cleanup the listener when the component unmounts
     return () => {
       authListener?.subscription.unsubscribe();
     };
-  }, [dispatch]);
+  }, [dispatch]); // Dependency array includes dispatch
 
-
-  // App-level Snackbar handler (if needed for global notifications)
+  // App-level Snackbar handler
   const showSnackbar = (message: string, severity: 'success' | 'error' | 'info' | 'warning') => {
     setSnackbarMessage(message);
     setSnackbarSeverity(severity);
@@ -104,28 +110,33 @@ function App() {
     setSnackbarOpen(false);
   };
 
+  // --- Render loading indicator until initial auth check is done ---
+  if (!isAuthCheckComplete) {
+    return (
+        <ThemeProvider theme={theme}>
+            <CssBaseline />
+            <LoadingSpinner /> {/* Display loading state */}
+        </ThemeProvider>
+    );
+  }
+  // ---------------------------------------------------------------
+
+  // --- Render the main app once auth check is complete ---
   return (
-    // Wrap the entire returned JSX with ThemeProvider
     <ThemeProvider theme={theme}>
-      {/* CssBaseline is optional but recommended */}
       <CssBaseline />
-      {/* Using a Fragment <></> here is fine if no extra wrapper div needed */}
       <>
-        {/* Render Navbar unless on the Auth page */}
         {!isAuthPage && (
            <Suspense fallback={<div>Loading Nav...</div>}><Navbar /></Suspense>
         )}
-
-        {/* Main content area */}
-        {/* Adjusted padding based on isAuthPage potentially */}
-        <main className={`flex-grow ${isAuthPage ? '' : 'pt-4 pb-8 sm:px-6 lg:px-8'}`}> {/* Example padding adjustment */}
-            {/* Use Suspense for lazy loaded route components if needed */}
-             <Suspense fallback={<div>Loading Page...</div>}>
+        {/* Adjusted padding - consider structure if Navbar has fixed height */}
+        <main className={`flex-grow w-full ${isAuthPage ? '' : 'mt-[var(--navbar-height,64px)]'}`}> {/* Example assuming Navbar height variable */}
+             <Suspense fallback={<LoadingSpinner />}> {/* Use LoadingSpinner here too */}
                 <Routes>
-                  {/* Public route */}
+                  {/* Auth route doesn't need the guard */}
                   <Route path="/auth" element={<Auth />} />
 
-                  {/* Protected routes */}
+                  {/* Protected routes wrapped by AuthGuard */}
                   <Route path="/" element={<AuthGuard><Dashboard /></AuthGuard>} />
                   <Route path="/applications" element={<AuthGuard><Applications /></AuthGuard>} />
                   <Route path="/target-companies" element={<AuthGuard><TargetCompanies /></AuthGuard>} />
@@ -135,25 +146,23 @@ function App() {
                   <Route path="/resume" element={<AuthGuard><ResumePage /></AuthGuard>} />
                   <Route path="/account" element={<AuthGuard><Account /></AuthGuard>} />
 
-                  {/* Consider if ResumeView needs AuthGuard */}
-                  <Route path="/resume-view/:resumeId" element={<ResumeView />} />
+                  {/* Decide if ResumeView needs auth */}
+                  {/* <Route path="/resume-view/:resumeId" element={<AuthGuard><ResumeView /></AuthGuard>} /> */}
+                  {/* Or if it's public: */}
+                  {/* <Route path="/resume-view/:resumeId" element={<ResumeView />} /> */}
 
-                  {/* Optional: Add a catch-all route for 404 */}
+                  {/* Catch-all 404 */}
                   {/* <Route path="*" element={<NotFoundPage />} /> */}
                 </Routes>
             </Suspense>
         </main>
 
-        {/* App-level Snackbar for global notifications */}
-        {/* Make sure snackbarMessage is not null before rendering Alert */}
         {snackbarMessage && (
            <Snackbar
               open={snackbarOpen}
               autoHideDuration={6000}
               onClose={handleSnackbarClose}
-              anchorOrigin={{ vertical: 'top', horizontal: 'right' }} // Or your preferred location
-              // Optionally add sx prop here too if needed for z-index
-              // sx={{ zIndex: 1500 }} // Example: Ensure it's above other elements if needed
+              anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
            >
               <Alert onClose={handleSnackbarClose} severity={snackbarSeverity} sx={{ width: '100%' }} variant="filled">
                 {snackbarMessage}
@@ -161,11 +170,40 @@ function App() {
            </Snackbar>
         )}
 
-        {/* Optional Footer - Render unless on Auth page */}
         {/* {!isAuthPage && <Footer />} */}
       </>
-    </ThemeProvider> // Close ThemeProvider
+    </ThemeProvider>
   );
 }
 
 export default App;
+
+// --- Simple Loading Spinner Example (components/LoadingSpinner.tsx) ---
+// Create this file if you don't have one
+/*
+import React from 'react';
+
+const LoadingSpinner = () => {
+  return (
+    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+      <div style={{
+        border: '4px solid rgba(0, 0, 0, 0.1)',
+        width: '36px',
+        height: '36px',
+        borderRadius: '50%',
+        borderLeftColor: '#09f', // Or your primary color
+        animation: 'spin 1s ease infinite',
+      }}></div>
+      <style>{`
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+      `}</style>
+    </div>
+  );
+};
+
+export default LoadingSpinner;
+*/
+// ---------------------------------------------------------------------

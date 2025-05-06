@@ -1,70 +1,82 @@
-import { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { useSelector, useDispatch } from 'react-redux'; // Import Redux hooks
+import { useState, useEffect, useRef } from 'react';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { useSelector, useDispatch } from 'react-redux';
 import {
-  Sun, Moon, Briefcase, Target, Timer, LayoutDashboard, Wand2, CheckSquare, Menu, X, Settings, ChevronDown, FileText
+  Sun, Moon, Target, Timer, LayoutDashboard, Wand2, CheckSquare, Menu, X, Settings, ChevronDown, FileText, LogOut, Briefcase // Added Briefcase back for nav links
 } from 'lucide-react';
 
-import { supabase } from '../lib/supabase'; // Import Supabase client
-
-// **** ASSUMPTIONS: Import your RootState type and theme actions ****
-// Adjust paths as per your project structure
-import type { RootState } from '../store'; // Example: import RootState type from your store setup
-import { toggleTheme } from '../store/themeSlice'; // Example: import toggleTheme action from your theme slice
-// setUser action from authSlice is implicitly handled by the listener in App.tsx on sign-out
-// *********************************************************************
+import { supabase } from '../lib/supabase';
+import type { RootState } from '../store';
+import { toggleTheme } from '../store/themeSlice';
+import { cn } from '../lib/utils';
 
 const Navbar = () => {
-  // --- Local UI State ---
+  // --- State & Refs (unchanged) ---
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  const userMenuRef = useRef<HTMLDivElement>(null);
+  const userMenuButtonRef = useRef<HTMLButtonElement>(null);
+  const mobileMenuRef = useRef<HTMLDivElement>(null);
+  const mobileMenuButtonRef = useRef<HTMLButtonElement>(null);
 
-  // --- Hooks ---
+
+  // --- Hooks (unchanged) ---
   const navigate = useNavigate();
   const dispatch = useDispatch();
+  const location = useLocation();
 
-  // --- Global State from Redux ---
-  // Get theme state - Adjust 'state.theme.currentTheme' if your slice structure differs
-// Correct:
-const theme = useSelector((state: RootState) => state.theme.theme);
-  // Get user state from auth slice
+  // --- Global State (unchanged) ---
+  const theme = useSelector((state: RootState) => state.theme.theme);
   const user = useSelector((state: RootState) => state.auth.user);
 
-  // --- Handlers ---
+  // --- Handlers (unchanged) ---
   const handleSignOut = async () => {
-    setIsUserMenuOpen(false); // Close menu if open
-    setIsMenuOpen(false); // Close mobile menu if open
+    setIsUserMenuOpen(false);
+    setIsMenuOpen(false);
     try {
       const { error } = await supabase.auth.signOut();
       if (error) {
         console.error('Error signing out:', error);
-        // Optionally show a snackbar error here
       }
-      // No need to dispatch(setUser(null)) here - the listener in App.tsx handles it.
-      navigate('/auth'); // Navigate after sign out attempt
+      navigate('/auth');
     } catch (error) {
       console.error('Error during sign out process:', error);
     }
   };
 
   const handleToggleTheme = () => {
-    // Dispatch the toggleTheme action from your theme slice
     dispatch(toggleTheme());
   };
 
-  // Close user menu if clicking outside (Optional but good UX)
-// Around line 55 in your Navbar.tsx:
-useEffect(() => {
-  const handleClickOutside = (_event: MouseEvent) => { 
-  };
-  document.addEventListener('mousedown', handleClickOutside);
-  return () => {
-    document.removeEventListener('mousedown', handleClickOutside);
-  };
-}, [isUserMenuOpen]);
+  // Effect to close menus (unchanged)
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        isUserMenuOpen &&
+        userMenuRef.current &&
+        !userMenuRef.current.contains(event.target as Node) &&
+        userMenuButtonRef.current &&
+        !userMenuButtonRef.current.contains(event.target as Node)
+      ) {
+        setIsUserMenuOpen(false);
+      }
+      if (
+          isMenuOpen &&
+          mobileMenuRef.current &&
+          !mobileMenuRef.current.contains(event.target as Node) &&
+          mobileMenuButtonRef.current &&
+          !mobileMenuButtonRef.current.contains(event.target as Node)
+      ) {
+          setIsMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isUserMenuOpen, isMenuOpen]);
 
-
-  // --- Navigation Links Definition ---
+  // --- Navigation Links (unchanged) ---
   const navLinks = [
     { to: "/", icon: <LayoutDashboard className="h-4 w-4" />, label: "Dashboard" },
     { to: "/applications", icon: <Briefcase className="h-4 w-4" />, label: "Applications" },
@@ -75,79 +87,91 @@ useEffect(() => {
     { to: "/ai-tools", icon: <Wand2 className="h-4 w-4" />, label: "AI Tools" },
   ];
 
+  // --- Active Link Check (unchanged) ---
+  const isActive = (path: string) => location.pathname === path;
+
   // --- Render Logic ---
   return (
-    // Added sticky, top-0, and z-50 for better navbar behavior
-    <nav className={`${theme === 'dark' ? 'bg-gray-800' : 'bg-white'} shadow-lg sticky top-0 z-50`}>
-      <div className="container mx-auto px-4">
+    <nav className={cn(
+        "sticky top-0 z-50",
+        "bg-background/80 backdrop-blur-lg",
+        "border-b border-border/50"
+    )}>
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
-          {/* Logo/Brand */}
+          {/* --- Logo/Brand with URL --- */}
           <div className="flex items-center">
-            <Link to="/" className="flex items-center space-x-2">
-              <Briefcase className="h-6 w-6 text-primary" />
-              <span className={`font-bold text-xl ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+            <Link to="/" className="flex items-center space-x-2 text-foreground hover:text-primary transition-colors">
+              {/* Use the provided image URL */}
+              <img
+                src="https://i.postimg.cc/vHhQk3qf/communitypage.png" // <-- Updated URL
+                alt="torcBoard CRM Logo" // Keep descriptive alt text
+                className="h-8 w-auto object-contain" // Adjust size (h-8) as needed
+              />
+              <span className="font-bold text-xl hidden sm:inline">
                 torcBoard CRM
               </span>
             </Link>
           </div>
+          {/* --- End Logo/Brand --- */}
 
-          {/* Desktop Navigation & Actions */}
-          <div className="hidden md:flex items-center space-x-4">
-            {/* Nav Links */}
+
+          {/* Desktop Navigation & Actions (unchanged) */}
+          <div className="hidden md:flex items-center space-x-1 lg:space-x-2">
             {navLinks.map((link) => (
               <Link
                 key={link.to}
                 to={link.to}
-                className={`flex items-center space-x-1 px-3 py-2 rounded-md text-sm font-medium ${
-                  theme === 'dark' ? 'text-gray-300 hover:bg-gray-700 hover:text-white' : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
-                }`} // Added hover background for better feedback
+                className={cn(
+                    "flex items-center space-x-1.5 px-3 py-2 rounded-md text-sm font-medium transition-colors",
+                    isActive(link.to)
+                        ? "text-primary bg-primary/10"
+                        : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                )}
               >
                 {link.icon}
                 <span>{link.label}</span>
               </Link>
             ))}
-            {/* Theme Toggle Button */}
             <button
-              onClick={handleToggleTheme} // Use the dispatch handler
-              aria-label="Toggle theme" // Added aria-label for accessibility
-              className={`p-2 rounded-lg ${
-                theme === 'dark'
-                  ? 'text-gray-300 hover:bg-gray-700 hover:text-white'
-                  : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
-              }`}
+              onClick={handleToggleTheme}
+              aria-label="Toggle theme"
+              className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+              title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
             >
               {theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
             </button>
-            {/* User Menu / Sign In */}
             {user ? (
-              <div className="relative">
+              <div className="relative" ref={userMenuRef}>
                 <button
+                  ref={userMenuButtonRef}
                   onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-                  className={`flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium ${
-                    theme === 'dark' ? 'bg-gray-700 text-gray-200 hover:bg-gray-600' : 'bg-gray-100 text-gray-800 hover:bg-gray-200'
-                   }`} // Adjusted theme styling
+                  className="flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium text-foreground bg-muted/50 hover:bg-muted/80 transition-colors"
+                  aria-haspopup="true"
+                  aria-expanded={isUserMenuOpen}
                 >
-                  {/* Use optional chaining and provide fallback for user metadata */}
-                  <span>👋 {user.user_metadata?.first_name ?? 'User'}</span>
-                  <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${isUserMenuOpen ? 'rotate-180' : ''}`} />
+                  <span>{user.user_metadata?.first_name ?? user.email?.split('@')[0] ?? 'Account'}</span>
+                  <ChevronDown className={cn("h-4 w-4 text-muted-foreground transition-transform duration-200", isUserMenuOpen ? 'rotate-180' : '')} />
                 </button>
-                {/* User Dropdown */}
                 {isUserMenuOpen && (
-                  // Added theme-aware styling for dropdown
-                  <div className={`absolute right-0 mt-2 w-48 ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'} rounded-md shadow-lg py-1 border`}>
+                  <div className={cn(
+                      "absolute right-0 mt-2 w-48 origin-top-right",
+                      "bg-card/90 backdrop-blur-md shadow-lg border border-border/50 rounded-md",
+                      "py-1 ring-1 ring-black ring-opacity-5 focus:outline-none"
+                  )}>
                     <Link
                       to="/account"
-                      className={`flex items-center w-full px-4 py-2 text-sm ${theme === 'dark' ? 'text-gray-300 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-100'}`}
+                      className="flex items-center w-full px-4 py-2 text-sm text-foreground hover:bg-muted/50 transition-colors"
                       onClick={() => setIsUserMenuOpen(false)}
                     >
-                      <Settings className="h-4 w-4 mr-2" />
+                      <Settings className="h-4 w-4 mr-2 text-muted-foreground" />
                       Account Settings
                     </Link>
                     <button
-                      onClick={handleSignOut} // Use the sign out handler
-                      className={`flex items-center w-full px-4 py-2 text-sm ${theme === 'dark' ? 'text-red-400 hover:bg-gray-700' : 'text-red-600 hover:bg-gray-100'}`} // Adjusted theme styling for destructive action
+                      onClick={handleSignOut}
+                      className="flex items-center w-full px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-destructive/10 transition-colors"
                     >
-                      {/* Consider adding a sign-out icon */}
+                      <LogOut className="h-4 w-4 mr-2" />
                       Sign Out
                     </button>
                   </div>
@@ -156,96 +180,96 @@ useEffect(() => {
             ) : (
               <Link
                 to="/auth"
-                className="bg-primary text-primary-foreground px-4 py-2 rounded-md text-sm font-medium hover:bg-primary/90" // Added hover effect
+                className="bg-primary text-primary-foreground px-4 py-2 rounded-md text-sm font-medium hover:bg-primary/90 transition-colors shadow-sm"
               >
                 Sign In
               </Link>
             )}
           </div>
 
-          {/* Mobile Menu Button & Theme Toggle */}
+          {/* Mobile Menu Button & Theme Toggle (unchanged) */}
           <div className="md:hidden flex items-center">
             <button
-              onClick={handleToggleTheme} // Use the dispatch handler
+              onClick={handleToggleTheme}
               aria-label="Toggle theme"
-              className={`p-2 rounded-lg mr-2 ${
-                theme === 'dark'
-                  ? 'text-gray-300 hover:bg-gray-700 hover:text-white'
-                  : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
-              }`}
+              className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors mr-1"
             >
               {theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
             </button>
             <button
+              ref={mobileMenuButtonRef}
               onClick={() => setIsMenuOpen(!isMenuOpen)}
               aria-label="Open main menu"
-              className={`p-2 rounded-lg ${
-                theme === 'dark'
-                  ? 'text-gray-300 hover:bg-gray-700 hover:text-white'
-                  : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
-              }`}
+              className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
             >
               {isMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
             </button>
           </div>
         </div>
 
-        {/* Mobile Navigation Menu */}
-        {isMenuOpen && (
-          <div className="md:hidden pb-4">
-            <div className="flex flex-col space-y-2">
+        {/* Mobile Navigation Menu (unchanged) */}
+        <div ref={mobileMenuRef} className={cn("md:hidden transition-all duration-300 ease-in-out overflow-hidden", isMenuOpen ? "max-h-screen pb-4" : "max-h-0")}>
+             <div className={cn("flex flex-col space-y-1 pt-2")}>
               {user && (
-                 // Added theme-aware styling
-                <div className={`px-4 py-3 ${theme === 'dark' ? 'bg-gray-700 text-gray-200' : 'bg-gray-100 text-gray-800'} rounded-md mb-2`}>
-                  👋 Welcome, {user.user_metadata?.first_name ?? 'User'}!
+                <div className="px-4 py-3 text-sm font-medium text-foreground border-b border-border/50 mb-1">
+                  👋 Welcome, {user.user_metadata?.first_name ?? user.email?.split('@')[0] ?? 'User'}!
                 </div>
               )}
               {navLinks.map((link) => (
                 <Link
                   key={link.to}
                   to={link.to}
-                  onClick={() => setIsMenuOpen(false)} // Close menu on click
-                  className={`flex items-center space-x-2 px-4 py-3 rounded-md text-base font-medium ${ // Increased text size slightly for mobile
-                    theme === 'dark' ? 'text-gray-300 hover:bg-gray-700 hover:text-white' : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
-                  }`}
+                  onClick={() => setIsMenuOpen(false)}
+                  className={cn(
+                    "flex items-center space-x-3 px-4 py-3 rounded-md text-base font-medium transition-colors",
+                     isActive(link.to)
+                        ? "text-primary bg-primary/10"
+                        : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                  )}
                 >
                   {link.icon}
                   <span>{link.label}</span>
                 </Link>
               ))}
               {user && (
-                <Link
-                  to="/account"
-                  onClick={() => setIsMenuOpen(false)}
-                  className={`flex items-center space-x-2 px-4 py-3 rounded-md text-base font-medium ${
-                    theme === 'dark' ? 'text-gray-300 hover:bg-gray-700 hover:text-white' : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
-                  }`}
-                >
-                  <Settings className="h-4 w-4" />
-                  <span>Account Settings</span>
-                </Link>
+                 <>
+                    <Link
+                      to="/account"
+                      onClick={() => setIsMenuOpen(false)}
+                      className={cn(
+                        "flex items-center space-x-3 px-4 py-3 rounded-md text-base font-medium transition-colors",
+                         isActive('/account')
+                            ? "text-primary bg-primary/10"
+                            : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                      )}
+                    >
+                      <Settings className="h-4 w-4" />
+                      <span>Account Settings</span>
+                    </Link>
+                    <div className="pt-2 px-4">
+                        <button
+                          onClick={handleSignOut}
+                          className="flex items-center justify-center w-full px-4 py-2 rounded-md text-base font-medium text-red-600 dark:text-red-400 bg-destructive/10 hover:bg-destructive/20 transition-colors"
+                        >
+                           <LogOut className="h-4 w-4 mr-2" />
+                          Sign Out
+                        </button>
+                    </div>
+                 </>
               )}
-              {user ? (
-                <button
-                  onClick={handleSignOut} // Use the sign out handler
-                  className={`flex items-center justify-center w-full px-4 py-3 rounded-md text-base font-medium ${
-                     theme === 'dark' ? 'text-red-400 bg-gray-700 hover:bg-gray-600' : 'text-red-600 bg-red-50 hover:bg-red-100' // Adjusted theme styling
-                   }`}
-                >
-                  Sign Out
-                </button>
-              ) : (
-                <Link
-                  to="/auth"
-                  onClick={() => setIsMenuOpen(false)}
-                  className="bg-primary text-primary-foreground px-4 py-3 rounded-md text-base font-medium text-center block hover:bg-primary/90" // Added block display
-                >
-                  Sign In
-                </Link>
+              {!user && (
+                  <div className="pt-2 px-4">
+                      <Link
+                        to="/auth"
+                        onClick={() => setIsMenuOpen(false)}
+                        className="bg-primary text-primary-foreground px-4 py-3 rounded-md text-base font-medium text-center block hover:bg-primary/90 transition-colors shadow-sm"
+                      >
+                        Sign In
+                      </Link>
+                 </div>
               )}
             </div>
           </div>
-        )}
       </div>
     </nav>
   );

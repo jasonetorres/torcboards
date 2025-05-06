@@ -5,6 +5,8 @@ import { analyzeJobDescription, getInterviewPrep } from '../lib/openai';
 import { supabase } from '../lib/supabase';
 import { useSelector } from 'react-redux';
 import { format } from 'date-fns';
+import { RootState } from '../store'; // Import RootState
+import { Card, CardBody, CardHeader } from '@heroui/react'; // Use Card components
 
 interface Analysis {
   id: string;
@@ -20,7 +22,8 @@ const AITools = () => {
   const [result, setResult] = useState('');
   const [analyses, setAnalyses] = useState<Analysis[]>([]);
   const [showHistory, setShowHistory] = useState(false);
-  const user = useSelector((state: any) => state.auth.user);
+  // Use RootState for proper typing
+  const user = useSelector((state: RootState) => state.auth.user);
 
   const [jobDescription, setJobDescription] = useState('');
   const [position, setPosition] = useState('');
@@ -29,237 +32,269 @@ const AITools = () => {
   useEffect(() => {
     if (user) {
       fetchAnalyses();
+    } else {
+      setAnalyses([]); // Clear history if user logs out
     }
-  }, [user, activeTab]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, activeTab]); // Dependencies are correct
 
   const fetchAnalyses = async () => {
-    const { data } = await supabase
+    if (!user) return; // Guard clause
+    const { data, error } = await supabase
       .from('ai_analyses')
       .select('*')
-      .eq('user_id', user!.id)
+      .eq('user_id', user.id)
       .eq('type', activeTab)
-      .order('created_at', { ascending: false });
-    if (data) setAnalyses(data);
+      .order('created_at', { ascending: false })
+      .limit(20); // Limit history items
+
+    if (error) {
+        console.error("Error fetching AI analyses:", error);
+    } else if (data) {
+        setAnalyses(data);
+    }
   };
 
   const saveAnalysis = async (type: string, input: string, result: string) => {
     if (!user) return;
-    await supabase.from('ai_analyses').insert({ user_id: user.id, type, input, result });
-    fetchAnalyses();
+    const { error } = await supabase.from('ai_analyses').insert({ user_id: user.id, type, input, result });
+    if (error) {
+        console.error("Error saving AI analysis:", error);
+    } else {
+        fetchAnalyses(); // Refresh history after saving
+    }
   };
 
   const handleAnalyzeJob = async () => {
+    if (!jobDescription || !user) return;
     setLoading(true);
+    setResult(''); // Clear previous result
     try {
       const analysis = await analyzeJobDescription(jobDescription);
-      setResult(analysis || '');
+      setResult(analysis || 'No analysis returned.');
       if (analysis) await saveAnalysis('job', jobDescription, analysis);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error analyzing job description:', error);
-      setResult('Error analyzing job description. Please try again.');
+      setResult(`Error analyzing job description: ${error.message || 'Please try again.'}`);
     }
     setLoading(false);
   };
 
   const handleInterviewPrep = async () => {
+    if (!position || !company || !user) return;
     setLoading(true);
+    setResult(''); // Clear previous result
     try {
       const prep = await getInterviewPrep(position, company);
-      setResult(prep || '');
+      setResult(prep || 'No preparation tips returned.');
       if (prep) await saveAnalysis('interview', `${position} at ${company}`, prep);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error getting interview prep:', error);
-      setResult('Error preparing interview guidance. Please try again.');
+      setResult(`Error preparing interview guidance: ${error.message || 'Please try again.'}`);
     }
     setLoading(false);
   };
 
   const loadAnalysis = (analysis: Analysis) => {
     setResult(analysis.result);
-    if (analysis.type === 'job') setJobDescription(analysis.input);
-    else if (analysis.type === 'interview') {
-      const [pos, comp] = analysis.input.split(' at ');
-      setPosition(pos);
-      setCompany(comp);
+    if (analysis.type === 'job') {
+        setJobDescription(analysis.input);
+        setActiveTab('job');
+    } else if (analysis.type === 'interview') {
+        const inputParts = analysis.input.split(' at ');
+        // Provide defaults if splitting fails unexpectedly
+        setPosition(inputParts[0] || '');
+        setCompany(inputParts[1] || '');
+        setActiveTab('interview');
     }
+     setShowHistory(false); // Close history when an item is loaded
+     window.scrollTo({ top: 0, behavior: 'smooth' }); // Scroll to top
   };
 
   return (
-    <main className="min-h-screen w-full relative flex items-center justify-center p-4">
+    // Consistent main layout structure
+    <main className="min-h-screen w-full relative flex justify-center px-4 pt-16 pb-16 overflow-y-auto">
+      {/* Background Image and Overlay */}
       <div className="fixed inset-0 z-0">
         <img
           src="https://img.heroui.chat/image/landscape?w=1920&h=1080&u=1"
           className="w-full h-full object-cover"
           alt="Dashboard Background"
         />
-        <div className="absolute inset-0 bg-background/" />
+        {/* Corrected Overlay */}
+        <div className="absolute inset-0 bg-black/20" />
       </div>
 
-      <div className="w-full max-w-7xl z-10">
+      {/* Content Area */}
+      <div className="w-full max-w-4xl z-10"> {/* Adjusted max-width for better focus */}
         <div className="space-y-6">
-          <h1 className="text-3xl font-bold mb-6 text-foreground">AI Career Tools</h1>
+          {/* Header - Consistent style */}
+          <h1 className="text-3xl font-bold text-white mix-blend-screen">AI Career Tools</h1>
 
-          <div className="bg-card text-card-foreground p-6 rounded-lg shadow-md mb-6">
-            <div className="flex flex-wrap gap-4 mb-6">
-              <button
-                onClick={() => setActiveTab('job')}
-                className={`flex items-center gap-2 px-4 py-2 rounded-md transition-colors text-sm sm:text-base w-full sm:w-auto justify-center ${
-                  activeTab === 'job'
-                    ? 'bg-primary text-primary-foreground'
-                    : 'bg-muted hover:bg-muted/80 text-muted-foreground'
-                }`}
-              >
-                <Building2 className="h-5 w-5" />
-                Job Analysis
-              </button>
-              <button
-                onClick={() => setActiveTab('interview')}
-                className={`flex items-center gap-2 px-4 py-2 rounded-md transition-colors text-sm sm:text-base w-full sm:w-auto justify-center ${
-                  activeTab === 'interview'
-                    ? 'bg-primary text-primary-foreground'
-                    : 'bg-muted hover:bg-muted/80 text-muted-foreground'
-                }`}
-              >
-                <Users className="h-5 w-5" />
-                Interview Prep
-              </button>
-            </div>
+          {/* Input Section Card */}
+          <Card className="bg-card/80 backdrop-blur-sm shadow-lg border-border/50">
+             <CardBody className="p-6">
+                 <div className="flex flex-wrap gap-4 mb-6">
+                   <button
+                     onClick={() => { setActiveTab('job'); setResult(''); }} // Clear result on tab switch
+                     className={`flex items-center gap-2 px-4 py-2 rounded-md transition-colors text-sm sm:text-base w-full sm:w-auto justify-center ${
+                       activeTab === 'job'
+                         ? 'bg-primary text-primary-foreground'
+                         : 'bg-muted hover:bg-muted/80 text-muted-foreground'
+                     }`}
+                   >
+                     <Building2 className="h-5 w-5" />
+                     Job Analysis
+                   </button>
+                   <button
+                     onClick={() => { setActiveTab('interview'); setResult(''); }} // Clear result on tab switch
+                     className={`flex items-center gap-2 px-4 py-2 rounded-md transition-colors text-sm sm:text-base w-full sm:w-auto justify-center ${
+                       activeTab === 'interview'
+                         ? 'bg-primary text-primary-foreground'
+                         : 'bg-muted hover:bg-muted/80 text-muted-foreground'
+                     }`}
+                   >
+                     <Users className="h-5 w-5" />
+                     Interview Prep
+                   </button>
+                 </div>
 
-            <div className="space-y-4">
-              {activeTab === 'job' && (
-                <>
-                  <div>
-                    <label className="block text-sm font-medium mb-2">
-                      Paste job description
-                    </label>
-                    <textarea
-                      value={jobDescription}
-                      onChange={(e) => setJobDescription(e.target.value)}
-                      className="w-full h-48 p-3 rounded-lg border border-input bg-background font-mono text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary/20"
-                      placeholder="Paste the job description here..."
-                    />
-                  </div>
-                  <button
-                    onClick={handleAnalyzeJob}
-                    disabled={loading || !jobDescription}
-                    className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-md disabled:opacity-50 transition-opacity text-sm sm:text-base w-full sm:w-auto justify-center"
-                  >
-                    <Wand2 className="h-5 w-5" />
-                    {loading ? 'Analyzing...' : 'Analyze Job'}
-                  </button>
-                </>
-              )}
+                 <div className="space-y-4">
+                   {activeTab === 'job' && (
+                     <>
+                       <div>
+                         <label htmlFor="jobDesc" className="block text-sm font-medium mb-2 text-card-foreground/80">
+                           Paste job description
+                         </label>
+                         <textarea
+                           id="jobDesc"
+                           value={jobDescription}
+                           onChange={(e) => setJobDescription(e.target.value)}
+                           className="w-full h-48 p-3 rounded-lg border border-input bg-background font-mono text-sm resize-y focus:outline-none focus:ring-2 focus:ring-primary/20"
+                           placeholder="Paste the full job description here..."
+                         />
+                       </div>
+                       <button
+                         onClick={handleAnalyzeJob}
+                         disabled={loading || !jobDescription}
+                         className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-2 rounded-md disabled:opacity-50 transition-all text-sm sm:text-base w-full sm:w-auto justify-center"
+                       >
+                         {loading ? (
+                             <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                         ) : (
+                            <Wand2 className="h-5 w-5" />
+                         )}
+                         {loading ? 'Analyzing...' : 'Analyze Job'}
+                       </button>
+                     </>
+                   )}
 
-              {activeTab === 'interview' && (
-                <>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium mb-2">
-                        Position
-                      </label>
-                      <input
-                        type="text"
-                        value={position}
-                        onChange={(e) => setPosition(e.target.value)}
-                        className="w-full p-3 rounded-lg border border-input bg-background focus:outline-none focus:ring-2 focus:ring-primary/20 text-sm sm:text-base"
-                        placeholder="e.g., Senior Software Engineer"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium mb-2">
-                        Company
-                      </label>
-                      <input
-                        type="text"
-                        value={company}
-                        onChange={(e) => setCompany(e.target.value)}
-                        className="w-full p-3 rounded-lg border border-input bg-background focus:outline-none focus:ring-2 focus:ring-primary/20 text-sm sm:text-base"
-                        placeholder="e.g., Google"
-                      />
-                    </div>
-                  </div>
-                  <button
-                    onClick={handleInterviewPrep}
-                    disabled={loading || !position || !company}
-                    className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-md disabled:opacity-50 transition-opacity text-sm sm:text-base w-full sm:w-auto justify-center"
-                  >
-                    <Wand2 className="h-5 w-5" />
-                    {loading ? 'Preparing...' : 'Get Interview Prep'}
-                  </button>
-                </>
-              )}
-            </div>
-          </div>
+                   {activeTab === 'interview' && (
+                     <>
+                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                         <div>
+                           <label htmlFor="position" className="block text-sm font-medium mb-2 text-card-foreground/80">
+                             Position *
+                           </label>
+                           <input
+                             id="position"
+                             type="text"
+                             value={position}
+                             onChange={(e) => setPosition(e.target.value)}
+                             className="w-full p-3 rounded-lg border border-input bg-background focus:outline-none focus:ring-2 focus:ring-primary/20 text-sm sm:text-base"
+                             placeholder="e.g., Senior Software Engineer"
+                             required
+                           />
+                         </div>
+                         <div>
+                           <label htmlFor="company" className="block text-sm font-medium mb-2 text-card-foreground/80">
+                             Company *
+                           </label>
+                           <input
+                             id="company"
+                             type="text"
+                             value={company}
+                             onChange={(e) => setCompany(e.target.value)}
+                             className="w-full p-3 rounded-lg border border-input bg-background focus:outline-none focus:ring-2 focus:ring-primary/20 text-sm sm:text-base"
+                             placeholder="e.g., Acme Corp"
+                             required
+                           />
+                         </div>
+                       </div>
+                       <button
+                         onClick={handleInterviewPrep}
+                         disabled={loading || !position || !company}
+                         className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-2 rounded-md disabled:opacity-50 transition-all text-sm sm:text-base w-full sm:w-auto justify-center"
+                       >
+                          {loading ? (
+                             <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                         ) : (
+                            <Wand2 className="h-5 w-5" />
+                         )}
+                         {loading ? 'Preparing...' : 'Get Interview Prep'}
+                       </button>
+                     </>
+                   )}
+                 </div>
+             </CardBody>
+          </Card>
 
+          {/* History Section Card */}
           {analyses.length > 0 && (
-            <div className="bg-card text-card-foreground p-6 rounded-lg shadow-md mb-6">
-              <button
-                onClick={() => setShowHistory(!showHistory)}
-                className="flex items-center justify-between w-full"
-              >
-                <div className="flex items-center gap-2">
-                  <Clock className="h-5 w-5" />
-                  <h2 className="text-xl font-semibold">Previous Analyses</h2>
-                </div>
-                {showHistory ? (
-                  <ChevronUp className="h-5 w-5" />
-                ) : (
-                  <ChevronDown className="h-5 w-5" />
-                )}
-              </button>
-
+            <Card className="bg-card/80 backdrop-blur-sm shadow-lg border-border/50">
+              <CardHeader className="p-4 cursor-pointer" onClick={() => setShowHistory(!showHistory)}>
+                 <div className="flex items-center justify-between w-full">
+                   <div className="flex items-center gap-2">
+                     <Clock className="h-5 w-5" />
+                     <h2 className="text-lg font-semibold">Previous Analyses ({activeTab})</h2>
+                   </div>
+                   {showHistory ? ( <ChevronUp className="h-5 w-5" /> ) : ( <ChevronDown className="h-5 w-5" /> )}
+                 </div>
+              </CardHeader>
               {showHistory && (
-                <div className="mt-4 space-y-3">
-                  {analyses.map((analysis) => (
-                    <button
-                      key={analysis.id}
-                      onClick={() => loadAnalysis(analysis)}
-                      className="w-full p-4 bg-muted rounded-lg text-left hover:bg-muted/80 transition-colors text-sm sm:text-base"
-                    >
-                      <div className="flex justify-between items-start gap-4">
-                        <p className="font-medium line-clamp-2">
-                          {analysis.input ? analysis.input.slice(0, 100) : ''}
-                          {analysis.input && analysis.input.length > 100 ? '...' : ''}
-                        </p>
-                        <span className="text-sm text-muted-foreground shrink-0">
-                          {format(new Date(analysis.created_at), 'MMM d,yyyy')}
-                        </span>
-                      </div>
-                    </button>
-                  ))}
-                </div>
+                <CardBody className="p-4 pt-0"> {/* Remove top padding when open */}
+                  <div className="mt-4 space-y-3 max-h-60 overflow-y-auto pr-2"> {/* Limit height and add scroll */}
+                    {analyses.map((analysis) => (
+                      <button
+                        key={analysis.id}
+                        onClick={() => loadAnalysis(analysis)}
+                        className="w-full p-3 bg-muted rounded-lg text-left hover:bg-muted/80 transition-colors text-sm sm:text-base block"
+                        title={`Load analysis from ${format(new Date(analysis.created_at), 'P p')}`}
+                      >
+                        <div className="flex justify-between items-start gap-4">
+                          <p className="font-medium line-clamp-1 flex-grow break-words pr-2"> {/* Allow wrapping */}
+                            {analysis.type === 'job' ? 'Job: ' : 'Interview: '}
+                            {analysis.input ? analysis.input.split('\n')[0].slice(0, 80) : 'Untitled'} {/* Show first line/part */}
+                            {analysis.input && analysis.input.length > 80 ? '...' : ''}
+                          </p>
+                          <span className="text-xs text-muted-foreground shrink-0 ml-auto">
+                            {format(new Date(analysis.created_at), 'MMM d, yyyy')}
+                          </span>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </CardBody>
               )}
-            </div>
+            </Card>
           )}
 
+          {/* Result Section Card */}
           {result && (
-            <div className="bg-card text-card-foreground rounded-lg shadow-md overflow-hidden">
-              <div className="p-4 border-b border-border">
+            <Card className="bg-card/80 backdrop-blur-sm shadow-lg border-border/50 overflow-hidden">
+              <CardHeader className="p-4 border-b border-border/50">
                 <h2 className="text-xl font-semibold">Analysis Results</h2>
-              </div>
-              <div className="divide-y divide-border">
-                <div className="p-6 prose prose-sm max-w-none dark:prose-invert overflow-y-auto max-h-[600px]">
-                  <ReactMarkdown
-                    components={{
-                      h1: ({ children }) => <h1 className="text-2xl font-bold mb-4">{children}</h1>,
-                      h2: ({ children }) => <h2 className="text-xl font-semibold mt-6 mb-3">{children}</h2>,
-                      h3: ({ children }) => <h3 className="text-lg font-medium mt-4 mb-2">{children}</h3>,
-                      ul: ({ children }) => <ul className="my-4 space-y-2">{children}</ul>,
-                      li: ({ children }) => <li className="flex gap-2 before:content-['•'] before:text-primary">{children}</li>,
-                      p: ({ children }) => <p className="my-3 leading-relaxed">{children}</p>,
-                      code: ({ node, className, children, ...props }) => (
-                        <pre className="rounded-lg bg-muted p-4 font-mono text-sm overflow-x-auto">
-                          <code>{String(children).replace(/\n$/, '')}</code>
-                        </pre>
-                      ),
-                    }}
-                  >
-                    {result}
-                  </ReactMarkdown>
-                </div>
-              </div>
-            </div>
+              </CardHeader>
+              <CardBody className="p-6">
+                 <div className="prose prose-sm max-w-none dark:prose-invert prose-headings:my-3 prose-p:my-2 prose-ul:my-2 prose-li:my-1 prose-li:before:content-['•'] prose-li:before:text-primary prose-li:before:mr-2 prose-a:text-primary hover:prose-a:underline prose-pre:bg-muted prose-pre:p-3 prose-pre:rounded-md prose-code:font-mono prose-code:text-sm overflow-x-auto">
+                   <ReactMarkdown>
+                     {result}
+                   </ReactMarkdown>
+                 </div>
+              </CardBody>
+            </Card>
           )}
+
         </div>
       </div>
     </main>

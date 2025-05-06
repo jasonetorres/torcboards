@@ -1,12 +1,13 @@
-import React from 'react'; // Removed useState
+import React from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { GripVertical, Trash2, MoreVertical as ArrowsOutLineVertical, MoreHorizontal as ArrowsOutLineHorizontal } from 'lucide-react';
 import type { WidgetType } from '../store/dashboardSlice';
+import { cn } from '../lib/utils'; // Assuming you have cn utility
 
 interface DashboardWidgetProps {
   id: string;
-  type: WidgetType;
+  type: WidgetType; // Keep type for potential future styling based on type
   onRemove: () => void;
   size: { cols: number; rows: number };
   onResize: (newSize: { cols: number; rows: number; }) => void;
@@ -30,9 +31,7 @@ export function DashboardWidget({
     isDragging,
   } = useSortable({ id });
 
-  // Removed showControls state
-
-  // --- Responsive Column Span Logic ---
+  // Responsive Column Span Logic (same as before)
   let colSpanClass = 'col-span-1';
   if (size.cols === 2) {
     colSpanClass = 'col-span-1 sm:col-span-2';
@@ -40,16 +39,16 @@ export function DashboardWidget({
     colSpanClass = 'col-span-1 sm:col-span-2 lg:col-span-3';
   }
 
-  // --- Inline Styles ---
+  // Inline Styles for DND and grid (same as before)
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
     zIndex: isDragging ? 10 : 1,
     gridRow: `span ${size.rows}`,
-    minHeight: type === 'quote' ? '120px' : type === 'calendar' ? '350px' : '200px',
+    // minHeight can be managed by content or specific widget styling if needed
+    // minHeight: type === 'quote' ? '120px' : type === 'aiCalendar' ? '350px' : '200px',
   };
 
-  // --- Resize Handlers ---
   const handleResizeHorizontal = (event: React.MouseEvent) => {
     event.stopPropagation();
     const maxCols = 3;
@@ -69,30 +68,26 @@ export function DashboardWidget({
       onRemove();
   }
 
-  // Combine listeners for the drag handle
-  const combinedListeners = { ...listeners };
-
   return (
     <div
       ref={setNodeRef}
       style={style}
-      // Apply responsive column span and other base classes
-      // Removed onMouseEnter, onMouseLeave, onFocus, onBlur handlers
-      // Removed tabIndex={0} and focus styles unless needed for other reasons
-      className={`${colSpanClass} relative flex flex-col bg-card text-card-foreground rounded-lg shadow-md ${
-        isDragging ? 'shadow-xl opacity-80' : '' // Style while dragging
-      } overflow-hidden touch-manipulation`}
-      // tabIndex={0} // Optional: Keep if you want the widget itself to be focusable for other reasons
+      // --- Main Card Styling Applied Here ---
+      className={cn(
+        colSpanClass,
+        "relative flex flex-col",
+        "bg-card/80 backdrop-blur-sm shadow-lg border-border/50 text-card-foreground rounded-lg", // Consistent card styling
+        "overflow-hidden touch-manipulation", // Base classes
+        isDragging ? "shadow-xl opacity-80" : "" // Dragging style
+      )}
     >
-      {/* Controls Overlay - Always Visible */}
+      {/* Controls Overlay - Remains similar */}
       <div
-        // Removed conditional opacity/pointer-events based on showControls
-        // Removed aria-hidden
-        className={`absolute top-1 right-1 flex items-center gap-1 bg-card/80 backdrop-blur-sm p-1 rounded-md opacity-100`}
+        className="absolute top-1 right-1 z-20 flex items-center gap-1 bg-background/70 backdrop-blur-sm p-1 rounded-md opacity-100 shadow"
       >
         <button
           onClick={handleResizeHorizontal}
-          className="text-muted-foreground hover:text-foreground p-1 rounded hover:bg-muted/80 touch-manipulation"
+          className="text-muted-foreground hover:text-foreground p-1 rounded hover:bg-muted/50 touch-manipulation"
           title="Cycle horizontal size"
           aria-label="Cycle horizontal size"
         >
@@ -100,7 +95,7 @@ export function DashboardWidget({
         </button>
         <button
           onClick={handleResizeVertical}
-          className="text-muted-foreground hover:text-foreground p-1 rounded hover:bg-muted/80 touch-manipulation"
+          className="text-muted-foreground hover:text-foreground p-1 rounded hover:bg-muted/50 touch-manipulation"
           title="Cycle vertical size"
           aria-label="Cycle vertical size"
         >
@@ -108,7 +103,7 @@ export function DashboardWidget({
         </button>
         <button
           onClick={handleRemoveClick}
-          className="text-muted-foreground hover:text-destructive p-1 rounded hover:bg-muted/80 touch-manipulation"
+          className="text-muted-foreground hover:text-destructive p-1 rounded hover:bg-muted/50 touch-manipulation"
           title="Remove widget"
           aria-label="Remove widget"
         >
@@ -117,8 +112,8 @@ export function DashboardWidget({
         {/* Drag Handle */}
         <div
           {...attributes}
-          {...combinedListeners}
-          className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground p-1 rounded hover:bg-muted/80 touch-manipulation"
+          {...listeners}
+          className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground p-1 rounded hover:bg-muted/50 touch-manipulation"
           title="Drag to reorder"
           aria-label="Drag handle"
         >
@@ -126,12 +121,12 @@ export function DashboardWidget({
         </div>
       </div>
 
-      {/* Content Area - Adjust padding top if controls always visible need different spacing */}
-      <div className="pt-10 flex-grow flex flex-col"> {/* Increased pt slightly */}
-        {/* Ensure children can grow if needed */}
-        <div className="flex-grow">
-            {children}
-        </div>
+      {/* Content Area - This will now hold the direct widget content */}
+      {/* Apply consistent padding similar to CardBody */}
+      <div className="p-4 sm:p-6 pt-10 flex-grow flex flex-col overflow-y-auto">
+        {/* pt-10 ensures content is below controls overlay */}
+        {/* The children (widget content) will fill this area */}
+        {children}
       </div>
     </div>
   );
