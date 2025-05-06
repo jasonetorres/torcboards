@@ -56,8 +56,8 @@ const Auth = () => {
           </h1>
           <p className="text-default-600 text-lg">
             {selected === "login"
-              ? "Sign in to continue to JobTracker"
-              : "Sign up to get started with JobTracker"}
+              ? "Sign in to continue to torcBoard"
+              : "Sign up to get started with torcBoard"}
           </p>
         </div>
 
