@@ -11,8 +11,6 @@ import AITools from './pages/AITools';
 import Tasks from './pages/Tasks';
 import ResumePage from './pages/Resume';
 import Account from './pages/Account';
-// Removed duplicate ResumeView import if ResumePage is the correct one
-// import ResumeView from './pages/Resume';
 import Navbar from './components/Navbar';
 import Snackbar from '@mui/material/Snackbar';
 import Alert from '@mui/material/Alert';
@@ -20,14 +18,12 @@ import { useDispatch, useSelector } from 'react-redux';
 import { setUser } from './store/authSlice';
 import { supabase } from './lib/supabase';
 import type { RootState } from './store';
-// Import or create a simple Loading component
-import LoadingSpinner from '../src/components/LoadingSpinner'; // Make sure you have this component
+import LoadingSpinner from '../src/components/LoadingSpinner'; 
 
 const theme = createTheme({
   // Your theme customizations
 });
 
-// AuthGuard remains the same - it relies on Redux state being correct
 const AuthGuard = ({ children }: { children: React.ReactNode }) => {
   const user = useSelector((state: RootState) => state.auth.user);
   const navigate = useNavigate();
@@ -74,8 +70,7 @@ function App() {
 
     // Listen for auth state changes
     const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
-      console.log(`Supabase Auth Event: ${event}`, session);
-      // Update user state in Redux
+
       dispatch(setUser(session?.user ?? null));
 
       // --- Mark the initial auth check as complete ---

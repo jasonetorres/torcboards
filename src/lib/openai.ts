@@ -53,7 +53,6 @@ if (import.meta.env.VITE_OPENAI_API_KEY) {
         dangerouslyAllowBrowser: true,
       });
       isConfigured = true;
-      console.log("OpenAI client configured.");
   } catch (error) { console.error("Failed to initialize OpenAI client:", error); }
 } else { console.warn("VITE_OPENAI_API_KEY not found. OpenAI features will be disabled."); }
 
