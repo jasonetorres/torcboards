@@ -1,22 +1,36 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Save, RefreshCw, Wand2, Upload, Copy, ExternalLink, CheckSquare, Trash2, Download } from 'lucide-react'; // Added Trash2, Download
+import { Save, RefreshCw, Wand2, Upload, Copy, ExternalLink, CheckSquare, Trash2, Download } from 'lucide-react';
 import Editor from '@monaco-editor/react';
 import { supabase } from '../lib/supabase';
 import { useSelector } from 'react-redux';
-// Assume analyzeResume is updated to return EnhancedAnalysisResult
 import { analyzeResume, EnhancedAnalysisResult } from '../lib/openai';
 import ReactMarkdown from 'react-markdown';
 import { v4 as uuidv4 } from 'uuid';
 import { RootState } from '../store';
 import { cn } from '../lib/utils';
 
-// Define types for component clarity
+// --- PDF & Download Libraries ---
+import * as pdfjsLib from 'pdfjs-dist'; // Use main package import
+// Attempt to import TextItem type directly (might depend on package structure/exports)
+// If this specific path fails, pdfjsLib.TextItem might not be directly exposed,
+// or you might need a type-only import if available, or use an inline type.
+// We'll try this first. If it errors, use an inline type like { str: string } below.
+
+import jsPDF from 'jspdf';
+
+// --- PDFjs Worker Configuration ---
+// Use the imported pdfjsLib object to get the version for the CDN path
+pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+
+
+// --- Type Definitions ---
 type ResumeData = {
   id: string;
   content: string;
   target_role: string | null;
 };
 
+// --- Component ---
 const Resume = () => {
   const [resumes, setResumes] = useState<ResumeData[]>([]);
   const [selectedResumeId, setSelectedResumeId] = useState<string | null>(null);
@@ -25,7 +39,8 @@ const Resume = () => {
   const [analysisResult, setAnalysisResult] = useState<EnhancedAnalysisResult | null>(null);
   const [loadingAnalysis, setLoadingAnalysis] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [deleting, setDeleting] = useState(false); // <-- Added deleting state
+  const [deleting, setDeleting] = useState(false);
+  const [fileLoading, setFileLoading] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const user = useSelector((state: RootState) => state.auth.user);
   const editorRef = useRef<any>(null);
@@ -33,7 +48,7 @@ const Resume = () => {
   const appTheme = useSelector((state: RootState) => state.theme.theme);
   const editorTheme = appTheme === 'dark' ? 'vs-dark' : 'light';
 
-  // Fetch resumes on mount or user change
+  // --- Effects ---
   useEffect(() => {
     if (user) {
       fetchResumes();
@@ -46,239 +61,198 @@ const Resume = () => {
     }
   }, [user]);
 
-  // Update editor content and target role when selectedResumeId changes
   useEffect(() => {
     const selectedResume = resumes.find(r => r.id === selectedResumeId);
     setEditorContent(selectedResume?.content || '');
     setTargetRole(selectedResume?.target_role || '');
-    setAnalysisResult(null); // Clear analysis when switching resumes
+    setAnalysisResult(null);
   }, [selectedResumeId, resumes]);
 
-
+  // --- Data Fetching ---
   const fetchResumes = async () => {
-    if (!user) return;
-    try {
-        const { data, error } = await supabase
-          .from('resumes')
-          .select('id, content, target_role')
-          .eq('user_id', user.id)
-          .order('updated_at', { ascending: false });
+     if (!user) return;
+     try {
+         const { data, error } = await supabase
+           .from('resumes')
+           .select('id, content, target_role')
+           .eq('user_id', user.id)
+           .order('updated_at', { ascending: false });
 
-        if (error) throw error;
+         if (error) throw error;
 
-        if (data) {
-          setResumes(data as ResumeData[]);
-          // Select the first resume by default if none is selected,
-          // or if the previously selected one was just deleted.
-          if (data.length > 0 && (!selectedResumeId || !data.find(r => r.id === selectedResumeId))) {
-            setSelectedResumeId(data[0].id);
-          } else if (data.length === 0) {
-            setSelectedResumeId(null);
-            setEditorContent('');
-            setTargetRole('');
-          }
-          // If the selectedResumeId is still valid and present in data, keep it selected.
-        } else {
-            setResumes([]);
-            setSelectedResumeId(null);
-            setEditorContent('');
-            setTargetRole('');
-        }
-    } catch (error) {
-        console.error("Error fetching resumes:", error);
-        showMessage(`Failed to load resumes: ${(error as Error).message}`, 'error');
-    }
+         if (data) {
+           setResumes(data as ResumeData[]);
+           if (data.length > 0 && (!selectedResumeId || !data.find(r => r.id === selectedResumeId))) {
+             setSelectedResumeId(data[0].id);
+           } else if (data.length === 0) {
+             setSelectedResumeId(null);
+             setEditorContent('');
+             setTargetRole('');
+           }
+         } else {
+             setResumes([]);
+             setSelectedResumeId(null);
+             setEditorContent('');
+             setTargetRole('');
+         }
+     } catch (error) {
+         console.error("Error fetching resumes:", error);
+         showMessage(`Failed to load resumes: ${(error as Error).message}`, 'error');
+     }
   };
 
+  // --- UI Messages ---
   const showMessage = (text: string, type: 'success' | 'error') => {
     setMessage({ type, text });
     setTimeout(() => setMessage(null), 4000);
-  }
+  };
 
+  // --- Core Actions ---
   const saveResume = async () => {
-    if (!user) return;
-
-    const contentToSave = editorContent;
-    const roleToSave = targetRole.trim() || null;
-
-    const isNewResume = !selectedResumeId;
-    const resumeIdToSave = selectedResumeId || uuidv4();
-
-    setSaving(true);
-    setMessage(null);
-
-    try {
-      const upsertData: any = {
-        id: resumeIdToSave,
-        user_id: user.id,
-        content: contentToSave,
-        target_role: roleToSave,
-        updated_at: new Date().toISOString(),
-      };
-
-      const { error } = await supabase
-        .from('resumes')
-        .upsert(upsertData, { onConflict: 'id' });
-
-      if (error) throw error;
-
-      showMessage('Resume saved successfully!', 'success');
-
-      const currentResumes = [...resumes];
-      const resumeIndex = currentResumes.findIndex(r => r.id === resumeIdToSave);
-      if (isNewResume || resumeIndex === -1) {
-          await fetchResumes(); // Re-fetch to get the new item in the list
-          setSelectedResumeId(resumeIdToSave); // Explicitly select the new/saved one
-      } else {
-          // Update local state for existing resume to avoid full re-fetch visual glitch
-          currentResumes[resumeIndex] = { ...currentResumes[resumeIndex], content: contentToSave, target_role: roleToSave };
-          setResumes(currentResumes);
-          setSelectedResumeId(resumeIdToSave); // Ensure it remains selected
-      }
-
-    } catch (error) {
-        console.error("Error saving resume:", error);
-        showMessage(`Error saving resume: ${(error as Error).message}`, 'error');
-    } finally {
-      setSaving(false);
-    }
+     if (!user) return;
+     const contentToSave = editorContent;
+     const roleToSave = targetRole.trim() || null;
+     const isNewResume = !selectedResumeId;
+     const resumeIdToSave = selectedResumeId || uuidv4();
+     setSaving(true);
+     setMessage(null);
+     try {
+       const upsertData: any = {
+         id: resumeIdToSave,
+         user_id: user.id,
+         content: contentToSave,
+         target_role: roleToSave,
+         updated_at: new Date().toISOString(),
+       };
+       const { error } = await supabase.from('resumes').upsert(upsertData, { onConflict: 'id' });
+       if (error) throw error;
+       showMessage('Resume saved successfully!', 'success');
+       const currentResumes = [...resumes];
+       const resumeIndex = currentResumes.findIndex(r => r.id === resumeIdToSave);
+       if (isNewResume || resumeIndex === -1) {
+           await fetchResumes();
+           setSelectedResumeId(resumeIdToSave);
+       } else {
+           currentResumes[resumeIndex] = { ...currentResumes[resumeIndex], content: contentToSave, target_role: roleToSave };
+           setResumes(currentResumes);
+           setSelectedResumeId(resumeIdToSave);
+       }
+     } catch (error) {
+         console.error("Error saving resume:", error);
+         showMessage(`Error saving resume: ${(error as Error).message}`, 'error');
+     } finally {
+       setSaving(false);
+     }
   };
 
   const deleteResume = async () => {
-    if (!selectedResumeId || !user) {
-      showMessage('Please select a resume to delete.', 'error');
-      return;
-    }
-
-    const resumeToDelete = resumes.find(r => r.id === selectedResumeId);
-    const resumeIdentifier = resumeToDelete?.target_role || `ID: ${selectedResumeId.substring(0,6)}`;
-
-    if (!window.confirm(`Are you sure you want to permanently delete this resume version?\n(${resumeIdentifier})`)) {
-        return;
-    }
-
-    setDeleting(true);
-    setMessage(null);
-
-    try {
-      const { error } = await supabase
-        .from('resumes')
-        .delete()
-        .match({ id: selectedResumeId, user_id: user.id }); // Match ID and ensure ownership
-
-      if (error) throw error;
-
-      showMessage('Resume deleted successfully!', 'success');
-
-      // Reset state after deletion
-      const currentlySelected = selectedResumeId; // Store ID before resetting
-      setSelectedResumeId(null); // Deselect first
-      setEditorContent('');
-      setTargetRole('');
-      setAnalysisResult(null);
-
-      // Update the local list immediately for responsiveness
-      setResumes(prevResumes => prevResumes.filter(r => r.id !== currentlySelected));
-
-      // Re-fetch is good for consistency, but the local update handles the immediate view.
-      // Fetching will implicitly select the first available or leave empty if none left.
-      await fetchResumes();
-
-    } catch (error) {
-      console.error("Error deleting resume:", error);
-      showMessage(`Error deleting resume: ${(error as Error).message}`, 'error');
-    } finally {
-      setDeleting(false);
-    }
+     if (!selectedResumeId || !user) {
+       showMessage('Please select a resume to delete.', 'error');
+       return;
+     }
+     const resumeToDelete = resumes.find(r => r.id === selectedResumeId);
+     const resumeIdentifier = resumeToDelete?.target_role || `ID: ${selectedResumeId.substring(0,6)}`;
+     if (!window.confirm(`Are you sure you want to permanently delete this resume version?\n(${resumeIdentifier})`)) {
+         return;
+     }
+     setDeleting(true);
+     setMessage(null);
+     try {
+       const { error } = await supabase.from('resumes').delete().match({ id: selectedResumeId, user_id: user.id });
+       if (error) throw error;
+       showMessage('Resume deleted successfully!', 'success');
+       const currentlySelected = selectedResumeId;
+       setSelectedResumeId(null);
+       setEditorContent('');
+       setTargetRole('');
+       setAnalysisResult(null);
+       setResumes(prevResumes => prevResumes.filter(r => r.id !== currentlySelected));
+       await fetchResumes();
+     } catch (error) {
+       console.error("Error deleting resume:", error);
+       showMessage(`Error deleting resume: ${(error as Error).message}`, 'error');
+     } finally {
+       setDeleting(false);
+     }
   };
 
+  const analyzeForRole = async () => {
+     const currentContent = editorContent;
+     if (!currentContent || !targetRole) {
+       showMessage('Please enter resume content and specify a target role to analyze.', 'error');
+       return;
+     }
+     if (!analyzeResume) {
+       showMessage('AI analysis feature not available.', 'error');
+       return;
+     }
+     setLoadingAnalysis(true);
+     setAnalysisResult(null);
+     setMessage(null);
+     try {
+       const result = await analyzeResume(currentContent, targetRole);
+       setAnalysisResult(result);
+       if (user && result?.suggestionsMarkdown) {
+         await supabase.from('ai_analyses').insert({
+           user_id: user.id, type: 'resume', input: `Role: ${targetRole}\n\n${currentContent.substring(0, 500)}...`,
+           result: result.suggestionsMarkdown,
+         }).then(({ error }) => { if (error) console.error("Error logging AI analysis:", error); });
+       }
+       showMessage('Analysis complete.', 'success');
+     } catch (error) {
+       console.error("Error analyzing resume:", error);
+       const errorMsg = `Error analyzing resume: ${(error as Error).message}`;
+       showMessage(errorMsg, 'error');
+       setAnalysisResult({ suggestionsMarkdown: `An error occurred during analysis: ${errorMsg}` });
+     } finally {
+       setLoadingAnalysis(false);
+     }
+  };
+
+  const applyCorrectedResume = () => {
+     if (analysisResult?.correctedResumeMarkdown) {
+       setEditorContent(analysisResult.correctedResumeMarkdown);
+       showMessage('AI corrected version applied to editor. Review and save.', 'success');
+     } else {
+       showMessage('No AI corrected version available to apply.', 'error');
+     }
+  };
+
+  // --- Download Function ---
   const downloadResume = () => {
     if (!editorContent) {
       showMessage('Nothing to download. Editor is empty.', 'error');
       return;
     }
-
-    // Create filename (using targetRole or a fallback)
     const filenameBase = targetRole || (selectedResumeId ? `resume-${selectedResumeId.substring(0,6)}` : 'resume');
-    const filename = `${filenameBase.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.md`; // Sanitize filename
-
-    // Create a Blob with the editor content (Markdown)
-    const blob = new Blob([editorContent], { type: 'text/markdown;charset=utf-8;' });
-
-    // Create a link element
-    const link = document.createElement("a");
-
-    // Set the download attribute and object URL
-    link.href = URL.createObjectURL(blob);
-    link.setAttribute("download", filename);
-
-    // Append link to body, click it, and remove it
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-
-    // Optional: Revoke the object URL after a short delay
-    setTimeout(() => URL.revokeObjectURL(link.href), 100);
-
-    // Don't show message immediately, allow download to start
-    // showMessage('Resume download started.', 'success');
-  };
-
-
-  const analyzeForRole = async () => {
-    const currentContent = editorContent;
-    if (!currentContent || !targetRole) {
-      showMessage('Please enter resume content and specify a target role to analyze.', 'error');
-      return;
-    }
-    if (!analyzeResume) {
-      showMessage('AI analysis feature not available.', 'error');
-      return;
-    }
-
-    setLoadingAnalysis(true);
-    setAnalysisResult(null);
-    setMessage(null);
-
+    const filename = `${filenameBase.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.pdf`;
     try {
-      const result = await analyzeResume(currentContent, targetRole);
-      setAnalysisResult(result);
-
-      if (user && result?.suggestionsMarkdown) {
-        await supabase.from('ai_analyses').insert({
-          user_id: user.id, type: 'resume', input: `Role: ${targetRole}\n\n${currentContent.substring(0, 500)}...`,
-          result: result.suggestionsMarkdown,
-        }).then(({ error }) => { if (error) console.error("Error logging AI analysis:", error); });
-      }
-      showMessage('Analysis complete.', 'success');
+      const doc = new jsPDF({ orientation: 'p', unit: 'pt', format: 'letter' });
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(11);
+      const pageHeight = doc.internal.pageSize.getHeight();
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const margin = 40;
+      const usableWidth = pageWidth - 2 * margin;
+      let yPos = margin;
+      const lines = doc.splitTextToSize(editorContent, usableWidth);
+      lines.forEach((line: string) => {
+          if (yPos + 12 > pageHeight - margin) {
+              doc.addPage();
+              yPos = margin;
+          }
+          doc.text(line, margin, yPos);
+          yPos += 14;
+      });
+      doc.save(filename);
     } catch (error) {
-      console.error("Error analyzing resume:", error);
-      const errorMsg = `Error analyzing resume: ${(error as Error).message}`;
-      showMessage(errorMsg, 'error');
-      setAnalysisResult({ suggestionsMarkdown: `An error occurred during analysis: ${errorMsg}` });
-    } finally {
-      setLoadingAnalysis(false);
-    }
-  };
-
-  const applyCorrectedResume = () => {
-    if (analysisResult?.correctedResumeMarkdown) {
-      setEditorContent(analysisResult.correctedResumeMarkdown);
-      showMessage('AI corrected version applied to editor. Review and save.', 'success');
-    } else {
-      showMessage('No AI corrected version available to apply.', 'error');
+        console.error("Error generating PDF:", error);
+        showMessage('Failed to generate PDF for download.', 'error');
     }
   };
 
 
-  const handleEditorChange = (value: string | undefined) => {
-    setEditorContent(value || '');
-  };
-
-  const handleEditorDidMount = (editor: any, _monaco: any) => {
-    editorRef.current = editor;
-  };
-
+  // --- File Upload Handling ---
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -287,22 +261,50 @@ const Resume = () => {
     }
   };
 
-  const readFileContent = (file: File) => {
-    if (file.size > 1024 * 1024) { // 1MB Limit
-      showMessage('File is too large (max 1MB).', 'error');
-      return;
+  const extractTextFromPdf = async (file: File): Promise<string> => {
+    const arrayBuffer = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+    let allText = "";
+
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page = await pdf.getPage(i);
+      const textContent = await page.getTextContent();
+      // Type the item parameter explicitly
+      const pageText = textContent.items.map((item: any) => { // Use any for now if TextItem import fails
+          // Basic check if item has 'str' property
+          if (typeof item === 'object' && item !== null && 'str' in item) {
+              return item.str;
+          }
+          return ''; // Return empty string for items without 'str'
+      }).join(' '); // Join text pieces with a space
+      allText += pageText + "\n\n"; // Add space between pages
     }
-    if (!['text/plain', 'text/markdown'].includes(file.type)) {
-       if (file.type.startsWith('text/')) {
-            console.log("Reading text file...");
-       } else {
-            showMessage('Unsupported file type. Please use TXT or MD.', 'error');
-             return;
-       }
-    }
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const text = event.target?.result as string;
+    return allText;
+  };
+
+
+  const readFileContent = async (file: File) => {
+    setFileLoading(true);
+    setMessage(null);
+    try {
+      if (file.size > 5 * 1024 * 1024) {
+        throw new Error('File is too large (max 5MB).');
+      }
+      let text = '';
+      if (file.type === 'application/pdf') {
+          console.log("Reading PDF file...");
+          text = await extractTextFromPdf(file);
+      } else if (file.type === 'text/plain' || file.type === 'text/markdown' || file.type.startsWith('text/')) {
+          console.log("Reading text/markdown file...");
+          text = await new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = (event) => resolve(event.target?.result as string);
+            reader.onerror = (error) => reject(error);
+            reader.readAsText(file);
+          });
+      } else {
+          throw new Error('Unsupported file type. Please use PDF, TXT, or MD.');
+      }
       if (text) {
         setEditorContent(text);
         showMessage(`Content from ${file.name} loaded. Remember to save.`, 'success');
@@ -311,50 +313,63 @@ const Resume = () => {
           setAnalysisResult(null);
         }
       } else {
-        showMessage('Could not read file content.', 'error');
+        throw new Error('Could not read content from file.');
       }
-    };
-    reader.onerror = (error) => {
-      console.error("Error reading file:", error);
-      showMessage('Error reading file.', 'error');
-    };
-    reader.readAsText(file);
+    } catch (error) {
+        console.error("Error reading file:", error);
+        showMessage(`Error reading file: ${(error as Error).message}`, 'error');
+    } finally {
+        setFileLoading(false);
+    }
+  };
+
+  // --- Other Handlers ---
+  const handleEditorChange = (value: string | undefined) => {
+    setEditorContent(value || '');
+  };
+
+  const handleEditorDidMount = (editor: any, _monaco: any) => {
+    editorRef.current = editor;
   };
 
   const getShareableLink = (resumeId: string | null): string | null => {
-    if (!resumeId) return null;
-    const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
-    return `${baseUrl}/resume-view/${resumeId}`;
+     if (!resumeId) return null;
+     const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
+     return `${baseUrl}/resume-view/${resumeId}`;
   };
 
   const copyShareLink = () => {
-    const link = getShareableLink(selectedResumeId);
-    if (link && navigator.clipboard) {
-      navigator.clipboard.writeText(link)
-        .then(() => showMessage('Shareable link copied!', 'success'))
-        .catch(err => {
-          console.error('Failed to copy link: ', err);
-          showMessage('Failed to copy link.', 'error');
-        });
-    } else if (link) {
-      showMessage('Clipboard copy not supported or no link.', 'error');
-    }
+     const link = getShareableLink(selectedResumeId);
+     if (link && navigator.clipboard) {
+       navigator.clipboard.writeText(link)
+         .then(() => showMessage('Shareable link copied!', 'success'))
+         .catch(err => {
+           console.error('Failed to copy link: ', err);
+           showMessage('Failed to copy link.', 'error');
+         });
+     } else if (link) {
+       showMessage('Clipboard copy not supported or no link.', 'error');
+     }
   };
 
   const handleSelectChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const value = e.target.value;
-    if (value === "new") {
-      setSelectedResumeId(null);
-      setEditorContent('');
-      setTargetRole('');
-      setAnalysisResult(null);
-    } else {
-      setSelectedResumeId(value);
-      // Content/role/analysis will be updated by useEffect hook
-    }
+     const value = e.target.value;
+     if (value === "new") {
+       setSelectedResumeId(null);
+       setEditorContent('');
+       setTargetRole('');
+       setAnalysisResult(null);
+     } else {
+       setSelectedResumeId(value);
+     }
   };
 
+  // --- Render ---
   return (
+    // --- Root JSX and structure remains the same ---
+    // Ensure Upload input 'accept' includes '.pdf'
+    // Ensure Download button title indicates PDF download
+    // (The JSX provided in the previous answer already had these minor UI tweaks)
     <main className="min-h-screen w-full relative flex justify-center px-4 pt-16 pb-16 overflow-y-auto">
        <div className="fixed inset-0 z-0">
         <img
@@ -372,7 +387,6 @@ const Resume = () => {
             <h1 className="text-3xl font-bold text-white mix-blend-screen flex items-center gap-2 flex-shrink-0">
               Resume Editor & Analyzer
             </h1>
-            {/* --- Controls Grouped --- */}
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:flex lg:flex-wrap items-end gap-3 w-full md:w-auto">
               {/* Select Resume */}
               <div className='min-w-[150px]'>
@@ -381,7 +395,8 @@ const Resume = () => {
                   id="resumeSelect"
                   value={selectedResumeId || "new"}
                   onChange={handleSelectChange}
-                  className="w-full p-2 rounded border border-input bg-background focus:ring-2 focus:ring-primary/50 outline-none text-sm appearance-none bg-chevron-down bg-no-repeat bg-right"
+                  disabled={fileLoading || deleting || saving || loadingAnalysis} // Disable during operations
+                  className="w-full p-2 rounded border border-input bg-background focus:ring-2 focus:ring-primary/50 outline-none text-sm appearance-none bg-chevron-down bg-no-repeat bg-right disabled:opacity-70"
                 >
                   <option value="new" disabled={!selectedResumeId && editorContent === '' && resumes.length === 0}>-- New Resume --</option>
                   {resumes.map((resume) => (
@@ -400,24 +415,35 @@ const Resume = () => {
                   value={targetRole}
                   onChange={(e) => setTargetRole(e.target.value)}
                   placeholder="e.g., Sr. Software Engineer"
-                  className="w-full p-2 rounded border border-input bg-background focus:ring-2 focus:ring-primary/50 outline-none text-sm"
+                   disabled={fileLoading || deleting || saving || loadingAnalysis}
+                  className="w-full p-2 rounded border border-input bg-background focus:ring-2 focus:ring-primary/50 outline-none text-sm disabled:opacity-70"
                 />
               </div>
               {/* --- Action Buttons --- */}
                 {/* Upload */}
                 <label
                   htmlFor="resumeUpload"
-                  className="bg-muted hover:bg-muted/80 text-muted-foreground px-3 py-2 rounded-md flex items-center justify-center gap-2 text-sm cursor-pointer transition-colors h-full"
-                  title='Upload (.txt, .md)'
+                  className={cn(
+                    "bg-muted hover:bg-muted/80 text-muted-foreground px-3 py-2 rounded-md flex items-center justify-center gap-2 text-sm cursor-pointer transition-colors h-full",
+                    (fileLoading || deleting || saving || loadingAnalysis) && "opacity-50 cursor-not-allowed" // Disable visually
+                  )}
+                  title='Upload (.txt, .md, .pdf)' // Updated title
                 >
-                  <Upload className="h-4 w-4" />
-                  <span>Upload</span>
-                   <input type="file" id="resumeUpload" accept=".txt,.md" onChange={handleFileChange} className="hidden"/>
+                  {fileLoading ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" /> }
+                  <span>{fileLoading ? 'Reading...' : 'Upload'}</span>
+                   <input
+                     type="file"
+                     id="resumeUpload"
+                     accept=".txt,.md,.pdf" // Accept PDF
+                     onChange={handleFileChange}
+                     className="hidden"
+                     disabled={fileLoading || deleting || saving || loadingAnalysis} // Disable input during operations
+                   />
                 </label>
                 {/* Analyze */}
                 <button
                   onClick={analyzeForRole}
-                  disabled={loadingAnalysis || !editorContent || !targetRole}
+                  disabled={loadingAnalysis || saving || deleting || fileLoading || !editorContent || !targetRole}
                   className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-md flex items-center justify-center gap-2 text-sm disabled:opacity-50 transition-colors h-full"
                   title={!editorContent || !targetRole ? "Enter content and target role first" : "Analyze resume for target role"}
                 >
@@ -427,19 +453,19 @@ const Resume = () => {
                 {/* Download */}
                 <button
                   onClick={downloadResume}
-                  disabled={!editorContent}
+                  disabled={saving || deleting || fileLoading || loadingAnalysis || !editorContent}
                   className="bg-cyan-600 hover:bg-cyan-700 text-white px-3 py-2 rounded-md flex items-center justify-center gap-2 text-sm disabled:opacity-50 transition-colors h-full"
-                  title={!editorContent ? "Enter content to download" : "Download as .md file"}
+                  title={!editorContent ? "Enter content to download" : "Download as .pdf file"} // Updated title
                 >
                   <Download className="h-4 w-4" />
-                  <span>Download</span>
+                  <span>Download PDF</span>
                 </button>
                  {/* Delete */}
                 <button
                   onClick={deleteResume}
-                  disabled={deleting || !selectedResumeId}
+                  disabled={deleting || saving || fileLoading || loadingAnalysis || !selectedResumeId}
                   className="bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded-md flex items-center justify-center gap-2 text-sm disabled:opacity-50 transition-colors h-full"
-                  title={!selectedResumeId ? "Select a resume to delete" : "Delete selected resume"}
+                  title={!selectedResumeId ? "Select a resume version to delete" : "Delete selected resume version"}
                 >
                   {deleting ? (<RefreshCw className="h-4 w-4 animate-spin" />) : (<Trash2 className="h-4 w-4" />)}
                   {deleting ? 'Deleting...' : 'Delete'}
@@ -447,16 +473,15 @@ const Resume = () => {
                  {/* Save */}
                 <button
                   onClick={saveResume}
-                  disabled={saving || !editorContent}
+                  disabled={saving || deleting || fileLoading || loadingAnalysis || !editorContent}
                   className="bg-primary hover:bg-primary/90 text-primary-foreground px-3 py-2 rounded-md flex items-center justify-center gap-2 text-sm disabled:opacity-50 transition-colors h-full"
-                  title={!editorContent ? "Enter content to save" : "Save resume"}
+                  title={!editorContent ? "Enter content to save" : "Save current content"}
                 >
                   {saving ? ( <RefreshCw className="h-4 w-4 animate-spin" /> ) : ( <Save className="h-4 w-4" /> )}
                   {saving ? 'Saving...' : 'Save'}
                 </button>
             </div>
           </div>
-           {/* --- End Page Header --- */}
 
           {/* Message Display Area */}
           {message && (
@@ -472,7 +497,7 @@ const Resume = () => {
             {/* Editor Card */}
             <div className="bg-card/80 backdrop-blur-sm shadow-lg border-border/50 rounded-lg text-card-foreground overflow-hidden">
               <div className="p-3 border-b border-border/50">
-                <h2 className="text-base font-semibold">Resume Content (Markdown supported)</h2>
+                <h2 className="text-base font-semibold">Resume Content (Edit Text / Markdown)</h2>
               </div>
               <div className="min-h-[400px] h-[50vh] max-h-[600px] text-sm">
                 <Editor
@@ -489,7 +514,8 @@ const Resume = () => {
                     fontSize: 13,
                     scrollBeyondLastLine: false,
                     automaticLayout: true,
-                    padding: { top: 10, bottom: 10 }
+                    padding: { top: 10, bottom: 10 },
+                    readOnly: fileLoading || deleting || saving || loadingAnalysis // Make editor read-only during operations
                   }}
                 />
               </div>
@@ -502,7 +528,8 @@ const Resume = () => {
                 {analysisResult?.correctedResumeMarkdown && !loadingAnalysis && (
                     <button
                         onClick={applyCorrectedResume}
-                        className="bg-teal-600 hover:bg-teal-700 text-white px-3 py-1.5 rounded-md flex items-center gap-2 text-xs"
+                        disabled={fileLoading || deleting || saving || loadingAnalysis}
+                        className="bg-teal-600 hover:bg-teal-700 text-white px-3 py-1.5 rounded-md flex items-center gap-2 text-xs disabled:opacity-50"
                         title="Replace editor content with AI's full corrected version"
                     >
                         <CheckSquare className="h-3.5 w-3.5" />

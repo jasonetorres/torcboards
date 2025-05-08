@@ -4,10 +4,11 @@
     "lib": ["ES2023", "DOM", "DOM.Iterable"], // Added DOM libraries, often needed for web projects
     "module": "ESNext",
     "skipLibCheck": true,
+    "composite": true, 
 
     /* Bundler mode */
     "moduleResolution": "bundler",
-    "allowImportingTsExtensions": true,
+    //"allowImportingTsExtensions": true,
     "resolveJsonModule": true, // Often useful in modern JS/TS projects
     "isolatedModules": true,
     "moduleDetection": "force",
@@ -29,7 +30,7 @@
   "include": [
      "src", // Include all files in the src directory
      "vite.config.ts" // Keep your Vite config included
-     // You might need to add other specific files/patterns if they live outside 'src'
+, "pdf.js"     // You might need to add other specific files/patterns if they live outside 'src'
     ],
   "references": [{ "path": "./tsconfig.node.json" }]
 }
