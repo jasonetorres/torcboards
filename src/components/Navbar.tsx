@@ -2,12 +2,11 @@ import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import {
-  Sun, Moon, Target, Timer, LayoutDashboard, Wand2, CheckSquare, Menu, X, Settings, ChevronDown, FileText, LogOut, Briefcase // Added Briefcase back for nav links
+   Target, Timer, LayoutDashboard, Wand2, CheckSquare, Menu, X, Settings, ChevronDown, FileText, LogOut, Briefcase // Added Briefcase back for nav links
 } from 'lucide-react';
 
 import { supabase } from '../lib/supabase';
 import type { RootState } from '../store';
-import { toggleTheme } from '../store/themeSlice';
 import { cn } from '../lib/utils';
 
 const Navbar = () => {
@@ -44,9 +43,7 @@ const Navbar = () => {
     }
   };
 
-  const handleToggleTheme = () => {
-    dispatch(toggleTheme());
-  };
+
 
   // Effect to close menus (unchanged)
   useEffect(() => {
@@ -133,14 +130,7 @@ const Navbar = () => {
                 <span>{link.label}</span>
               </Link>
             ))}
-            <button
-              onClick={handleToggleTheme}
-              aria-label="Toggle theme"
-              className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
-              title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
-            >
-              {theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
-            </button>
+
             {user ? (
               <div className="relative" ref={userMenuRef}>
                 <button
@@ -189,13 +179,7 @@ const Navbar = () => {
 
           {/* Mobile Menu Button & Theme Toggle (unchanged) */}
           <div className="md:hidden flex items-center">
-            <button
-              onClick={handleToggleTheme}
-              aria-label="Toggle theme"
-              className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors mr-1"
-            >
-              {theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
-            </button>
+ 
             <button
               ref={mobileMenuButtonRef}
               onClick={() => setIsMenuOpen(!isMenuOpen)}
