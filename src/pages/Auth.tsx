@@ -1,15 +1,14 @@
-import React, { useState, useEffect } from 'react'; // Ensure useEffect is imported
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom'; // Import useLocation
 import { Card, CardBody, Input, Button, Tabs, Tab } from "@heroui/react";
 import { Icon } from "@iconify/react";
 import { useDispatch, useSelector } from 'react-redux';
-import { signIn, signUp, clearError } from '../store/authSlice';
+import { signIn, signUp, clearError } from '../store/authSlice'; // Assuming authSlice exports AppUser
 import { AppDispatch, RootState } from '../store';
 import { cn } from '../lib/utils';
 
 const Auth = () => {
   const dispatch = useDispatch<AppDispatch>();
-  // Get user, error, loading, and requiresConfirmation states from Redux
   const { user, error: authError, loading: isLoading } = useSelector((state: RootState) => state.auth);
 
   const [selected, setSelected] = useState<string>("login");
@@ -17,27 +16,29 @@ const Auth = () => {
   const [password, setPassword] = useState('');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
-  // Local error state for form-specific validation (e.g., "First name required")
   const [formError, setFormError] = useState('');
 
   const navigate = useNavigate();
+  const location = useLocation(); // Get current location
 
-  // --- Add useEffect to redirect if user is already logged in ---
+  // --- useEffect to redirect if user is logged in AND on the /auth page ---
   useEffect(() => {
     if (user && user.id) { // Check if user object is populated
-      console.log("[Auth.tsx] User is already logged in, redirecting to dashboard.");
-      navigate('/', { replace: true });
+      console.log("[Auth.tsx] useEffect: User is logged in. Current path:", location.pathname);
+      if (location.pathname === '/auth') { // Only redirect if currently on /auth page
+        console.log("[Auth.tsx] useEffect: User is on /auth page, redirecting to dashboard.");
+        navigate('/', { replace: true });
+      }
     }
-  }, [user, navigate]);
-  // -------------------------------------------------------------
+  }, [user, navigate, location]); // Added location to dependency array
+  // --------------------------------------------------------------------
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    dispatch(clearError()); // Clear any previous API auth errors from Redux
-    setFormError('');     // Clear local form validation errors
+    dispatch(clearError());
+    setFormError('');
 
     if (selected === "register") {
-      // Basic client-side validation for registration
       if (!firstName.trim() || !lastName.trim()) {
         setFormError("First and last name are required for registration.");
         return;
@@ -50,36 +51,31 @@ const Auth = () => {
         setFormError("Password is required.");
         return;
       }
-      // Add more validation as needed (e.g., password strength)
 
       const resultAction = await dispatch(signUp({ email, password, firstName, lastName }));
 
       if (signUp.fulfilled.match(resultAction)) {
-        // Destructure payload from the fulfilled action
         const { user: signedUpUser, session, requiresConfirmation: confirmationNeeded } = resultAction.payload;
 
         if (session && signedUpUser) {
-          // Session created immediately (email confirmation likely off or user auto-confirmed)
-          console.log("[Auth.tsx] Signup successful with session, navigating to dashboard.");
+          console.log("[Auth.tsx] Signup successful with immediate session.");
+          // For signup with immediate session, direct navigation is fine here,
+          // or you can let the useEffect handle it too by removing navigate('/')
+          // For now, keeping it to see if login loop is resolved first.
+          // The useEffect will also catch this and redirect if it hasn't already.
           navigate('/');
         } else if (confirmationNeeded || (signedUpUser && !session)) {
-          // User created, but email confirmation is pending
-          // Show a more user-friendly message (alert is okay for now, but consider a snackbar/toast)
           alert('Registration successful! Please check your email to verify your account before logging in.');
-          setSelected("login"); // Switch to login tab
-          // Clear form fields after successful submission for confirmation
+          setSelected("login");
           setEmail('');
           setPassword('');
           setFirstName('');
           setLastName('');
         } else {
-          // This case is less likely if the thunk handles states well, but as a fallback
           setFormError("Signup complete, but an issue occurred. Please try logging in or check your email.");
           setSelected("login");
         }
       }
-      // If signUp.rejected, authError from Redux store will be set by extraReducers
-      // and displayed by the {authError && ...} block.
     } else { // Login logic
       if (!email.trim()) {
         setFormError("Email is required.");
@@ -90,19 +86,21 @@ const Auth = () => {
         return;
       }
       const resultAction = await dispatch(signIn({ email, password }));
+
+      // After signIn.fulfilled, the user state in Redux will be updated.
+      // The useEffect above will now handle the redirection if the user is on the /auth page.
       if (signIn.fulfilled.match(resultAction) && resultAction.payload.user) {
-        console.log("[Auth.tsx] Signin successful, navigating to dashboard.");
-        navigate('/');
+        console.log("[Auth.tsx] Signin action fulfilled. User state should be updated in Redux. useEffect will handle redirect if on /auth.");
+        // REMOVED: navigate('/'); // Let the useEffect handle redirection
       }
-      // If signIn.rejected, authError from Redux store will be set.
+      // If signIn.rejected, authError from Redux store will be set and displayed.
     }
   };
 
   const handleTabChange = (key: React.Key) => {
     setSelected(key as string);
-    dispatch(clearError()); // Clear API errors
-    setFormError('');     // Clear local form errors
-    // Reset form fields when switching tabs for better UX
+    dispatch(clearError());
+    setFormError('');
     setEmail('');
     setPassword('');
     setFirstName('');
@@ -160,13 +158,11 @@ const Auth = () => {
               <Tab key="register" title="Register" />
             </Tabs>
 
-            {/* Display API errors from Redux store */}
             {authError && (
               <div className={cn( "mb-4 p-3 rounded text-sm border", "bg-red-100 text-red-900 border-red-200", "dark:bg-red-900/30 dark:text-red-200 dark:border-red-700/50" )} >
                 {authError}
               </div>
             )}
-            {/* Display local form validation errors */}
             {formError && (
               <div className={cn( "mb-4 p-3 rounded text-sm border", "bg-yellow-100 text-yellow-900 border-yellow-300", "dark:bg-yellow-900/30 dark:text-yellow-200 dark:border-yellow-700/50" )} >
                 {formError}
@@ -180,7 +176,7 @@ const Auth = () => {
                     label="First Name"
                     placeholder="Enter first name"
                     value={firstName}
-                    onValueChange={setFirstName} // Correct prop for HeroUI Input
+                    onValueChange={setFirstName}
                     variant="bordered" radius="lg" size="md" isRequired
                     startContent={ <Icon icon="lucide:user" className="text-default-400 pointer-events-none flex-shrink-0 text-xl" /> }
                   />
@@ -188,7 +184,7 @@ const Auth = () => {
                     label="Last Name"
                     placeholder="Enter last name"
                     value={lastName}
-                    onValueChange={setLastName} // Correct prop
+                    onValueChange={setLastName}
                     variant="bordered" radius="lg" size="md" isRequired
                     startContent={ <Icon icon="lucide:user" className="text-default-400 pointer-events-none flex-shrink-0 text-xl" /> }
                   />
@@ -200,7 +196,7 @@ const Auth = () => {
                 placeholder="Enter your email"
                 type="email"
                 value={email}
-                onValueChange={setEmail} // Correct prop
+                onValueChange={setEmail}
                 variant="bordered" radius="lg" size="md" isRequired
                 startContent={ <Icon icon="lucide:mail" className="text-default-400 pointer-events-none flex-shrink-0 text-xl" /> }
               />
@@ -209,7 +205,7 @@ const Auth = () => {
                 placeholder="Enter your password"
                 type="password"
                 value={password}
-                onValueChange={setPassword} // Correct prop
+                onValueChange={setPassword}
                 variant="bordered" radius="lg" size="md" isRequired
                 startContent={ <Icon icon="lucide:lock" className="text-default-400 pointer-events-none flex-shrink-0 text-xl" /> }
               />
@@ -228,7 +224,7 @@ const Auth = () => {
                 className="w-full"
                 size="lg"
                 radius="lg"
-                isLoading={isLoading} // Use isLoading from Redux
+                isLoading={isLoading}
               >
                 {isLoading ? 'Processing...' : (selected === "login" ? "Sign In" : "Create Account")}
               </Button>
