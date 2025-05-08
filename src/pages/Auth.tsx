@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom'; // Import useLocation
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Card, CardBody, Input, Button, Tabs, Tab } from "@heroui/react";
 import { Icon } from "@iconify/react";
 import { useDispatch, useSelector } from 'react-redux';
-import { signIn, signUp, clearError } from '../store/authSlice'; // Assuming authSlice exports AppUser
+import { signIn, signUp, clearError } from '../store/authSlice';
 import { AppDispatch, RootState } from '../store';
 import { cn } from '../lib/utils';
 
@@ -17,21 +17,28 @@ const Auth = () => {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [formError, setFormError] = useState('');
+  const [isPageLoaded, setIsPageLoaded] = useState(false); // New state for animation
 
   const navigate = useNavigate();
-  const location = useLocation(); // Get current location
+  const location = useLocation();
 
-  // --- useEffect to redirect if user is logged in AND on the /auth page ---
+  // Effect for page load animation
   useEffect(() => {
-    if (user && user.id) { // Check if user object is populated
+    const timer = setTimeout(() => {
+      setIsPageLoaded(true);
+    }, 100); // Small delay to ensure styles apply for transition
+    return () => clearTimeout(timer); // Cleanup timer
+  }, []);
+
+  useEffect(() => {
+    if (user && user.id) {
       console.log("[Auth.tsx] useEffect: User is logged in. Current path:", location.pathname);
-      if (location.pathname === '/auth') { // Only redirect if currently on /auth page
+      if (location.pathname === '/auth') {
         console.log("[Auth.tsx] useEffect: User is on /auth page, redirecting to dashboard.");
         navigate('/', { replace: true });
       }
     }
-  }, [user, navigate, location]); // Added location to dependency array
-  // --------------------------------------------------------------------
+  }, [user, navigate, location]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -59,10 +66,6 @@ const Auth = () => {
 
         if (session && signedUpUser) {
           console.log("[Auth.tsx] Signup successful with immediate session.");
-          // For signup with immediate session, direct navigation is fine here,
-          // or you can let the useEffect handle it too by removing navigate('/')
-          // For now, keeping it to see if login loop is resolved first.
-          // The useEffect will also catch this and redirect if it hasn't already.
           navigate('/');
         } else if (confirmationNeeded || (signedUpUser && !session)) {
           alert('Registration successful! Please check your email to verify your account before logging in.');
@@ -76,7 +79,7 @@ const Auth = () => {
           setSelected("login");
         }
       }
-    } else { // Login logic
+    } else {
       if (!email.trim()) {
         setFormError("Email is required.");
         return;
@@ -87,13 +90,9 @@ const Auth = () => {
       }
       const resultAction = await dispatch(signIn({ email, password }));
 
-      // After signIn.fulfilled, the user state in Redux will be updated.
-      // The useEffect above will now handle the redirection if the user is on the /auth page.
       if (signIn.fulfilled.match(resultAction) && resultAction.payload.user) {
         console.log("[Auth.tsx] Signin action fulfilled. User state should be updated in Redux. useEffect will handle redirect if on /auth.");
-        // REMOVED: navigate('/'); // Let the useEffect handle redirection
       }
-      // If signIn.rejected, authError from Redux store will be set and displayed.
     }
   };
 
@@ -109,6 +108,7 @@ const Auth = () => {
 
   return (
     <main className="min-h-screen w-full relative flex items-center justify-center p-4 overflow-y-auto">
+      {/* Background - visible immediately */}
       <div className="fixed inset-0 z-0">
         <img
           src="https://img.heroui.chat/image/landscape?w=1920&h=1080&u=1"
@@ -118,7 +118,13 @@ const Auth = () => {
         <div className="absolute inset-0 bg-black/30" />
       </div>
 
-      <div className="w-full max-w-md z-10">
+      {/* Foreground Content - will fade in */}
+      <div
+        className={cn(
+          "w-full max-w-md z-10 transition-opacity duration-1000 ease-out", // Added transition classes
+          isPageLoaded ? "opacity-100" : "opacity-0" // Conditional opacity
+        )}
+      >
         <div className="text-center mb-8">
           <div className="flex justify-center mb-4">
             <div className="p-3 rounded-2xl bg-white/20 backdrop-blur-sm">
@@ -227,7 +233,7 @@ const Auth = () => {
                 isLoading={isLoading}
               >
                 {isLoading ? 'Processing...' : (selected === "login" ? "Sign In" : "Create Account")}
-              </Button>
+              </Button>            
             </form>
           </CardBody>
         </Card>
