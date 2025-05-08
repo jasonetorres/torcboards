@@ -1,8 +1,10 @@
 import OpenAI from 'openai';
-import { supabase } from './supabase';
-import { format, addDays, startOfWeek, isValid, isPast, isToday } from 'date-fns'; // Ensure all needed date-fns are imported
+import { supabase } from './supabase'; // Assuming supabase is configured elsewhere if needed by other functions
+import { format, addDays, startOfWeek } from 'date-fns'; // Ensure all needed date-fns are imported
 
 // --- Type Definitions ---
+
+// For existing functions - keeping them as is
 interface AIEventData {
     title: string;
     description?: string;
@@ -25,7 +27,7 @@ interface CalendarEventInsertData {
 }
 
 interface CalendarEventRow extends CalendarEventInsertData {
-    id: string; // Now it's definitely there
+    id: string;
     created_at: string;
     updated_at: string;
 }
@@ -37,20 +39,33 @@ interface TaskInsertData {
     due_date?: string | null;
     priority: 'low' | 'medium' | 'high';
     status: 'pending' | 'completed' | 'overdue';
-    source?: string; // Added source field
+    source?: string;
     related_calendar_event_id?: string | null;
     related_application_id?: string | null;
 }
+
+// **New Type Definition for analyzeResume**
+export interface EnhancedAnalysisResult {
+  suggestionsMarkdown: string;      // For detailed suggestions, section by section
+  correctedResumeMarkdown?: string; // The AI's full rewritten/corrected resume content
+                                    // Make it optional in case AI fails to provide it or for error states
+}
+
 
 // --- OpenAI Client Initialization ---
 let openai: OpenAI | null = null;
 let isConfigured = false;
 
+// IMPORTANT SECURITY NOTE: Exposing OpenAI API keys directly in client-side code
+// (implied by `dangerouslyAllowBrowser: true` and VITE_ prefix) is highly risky.
+// This key can be stolen and misused. For production, always make OpenAI API calls
+// from a backend server or a secure serverless function (like Supabase Edge Functions)
+// where the API key is kept secret.
 if (import.meta.env.VITE_OPENAI_API_KEY) {
   try {
       openai = new OpenAI({
         apiKey: import.meta.env.VITE_OPENAI_API_KEY,
-        dangerouslyAllowBrowser: true,
+        dangerouslyAllowBrowser: true, // Acknowledge the risk if this is unavoidable in your current setup
       });
       isConfigured = true;
   } catch (error) { console.error("Failed to initialize OpenAI client:", error); }
@@ -58,19 +73,102 @@ if (import.meta.env.VITE_OPENAI_API_KEY) {
 
 const isOpenAIConfigured = () => isConfigured && openai !== null;
 
-// --- Helper function to map CalendarEventRow to TaskInsertData (Updated with source) ---
+
+// --- analyzeResume (Corrected and Enhanced) ---
+export async function analyzeResume(
+  resumeText: string,
+  targetRole?: string // Optional target role for more specific feedback
+): Promise<EnhancedAnalysisResult> {
+  if (!isOpenAIConfigured() || !openai) {
+    return {
+      suggestionsMarkdown: "OpenAI API key not configured or client failed to initialize. Resume analysis unavailable.",
+      // No correctedResumeMarkdown in this case
+    };
+  }
+
+  const systemPrompt = `You are an expert resume reviewer and career coach.
+Your task is to analyze the provided resume content for the specified target role.
+You must return your feedback as a VALID JSON object with two main keys:
+1.  "suggestionsMarkdown": Provide detailed, actionable suggestions to improve the resume. This should be formatted as Markdown. Analyze section by section (e.g., Summary, Experience, Education, Skills). Focus on clarity, impact, action verbs, quantifiable achievements, and ATS optimization. If the resume is strong in certain areas, acknowledge that.
+2.  "correctedResumeMarkdown": Provide a complete, rewritten version of the entire resume content, also formatted as Markdown. This version should incorporate your best practice suggestions and be tailored for the target role. If no target role is provided, give general improvements.
+
+Ensure the output is a single JSON object.`;
+
+  const userPrompt = `Target Role: ${targetRole || 'Not specified (provide general improvements)'}
+
+Resume Content to Analyze:
+---
+${resumeText}
+---`;
+
+  try {
+    const response = await openai.chat.completions.create({
+      model: "gpt-4-turbo", // Or "gpt-3.5-turbo-0125" or later for JSON mode support
+      response_format: { type: "json_object" }, // Essential for getting structured JSON output
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt }
+      ],
+      temperature: 0.5, // Adjust for creativity vs. precision
+      // max_tokens can be adjusted based on typical resume length + analysis
+    });
+
+    if (response.choices[0]?.message?.content) {
+      try {
+        // Attempt to parse the JSON content
+        const parsedResult = JSON.parse(response.choices[0].message.content) as EnhancedAnalysisResult;
+
+        // Basic validation of the parsed structure
+        if (typeof parsedResult.suggestionsMarkdown === 'string') {
+          return {
+            suggestionsMarkdown: parsedResult.suggestionsMarkdown,
+            correctedResumeMarkdown: typeof parsedResult.correctedResumeMarkdown === 'string' ? parsedResult.correctedResumeMarkdown : undefined,
+          };
+        } else {
+          // If the structure is not as expected, return an error within the defined structure
+          console.error("AI response JSON did not match expected structure:", parsedResult);
+          return {
+            suggestionsMarkdown: "Error: AI analysis returned an unexpected data structure. The raw response was: \n\n" + response.choices[0].message.content,
+          };
+        }
+      } catch (parseError) {
+        console.error("Error parsing AI JSON response for resume analysis:", parseError, "\nRaw AI Response:", response.choices[0].message.content);
+        return {
+          suggestionsMarkdown: `Error: Could not parse the AI's response. The AI might have returned invalid JSON. The raw response started with: \n\n${response.choices[0].message.content.substring(0, 300)}...`,
+          // No correctedResumeMarkdown on parse error
+        };
+      }
+    } else {
+      return {
+        suggestionsMarkdown: "AI analysis did not return any content.",
+      };
+    }
+  } catch (error: any) {
+    console.error("Error during OpenAI API call for resume analysis:", error);
+    if (error instanceof OpenAI.APIError) {
+      return {
+        suggestionsMarkdown: `Error from OpenAI API during resume analysis: ${error.status} ${error.name} - ${error.message}`,
+      };
+    }
+    return {
+      suggestionsMarkdown: "An unexpected error occurred while analyzing the resume. Please check the console for more details.",
+    };
+  }
+}
+
+
+// --- Helper function to map CalendarEventRow to TaskInsertData (Kept as is) ---
 function mapCalendarEventToTaskData(event: CalendarEventRow, userId: string): TaskInsertData {
     const taskStatus: TaskInsertData['status'] = event.completed ? 'completed' : 'pending';
-    let taskSource = 'ai_generated'; // Default source
+    let taskSource = 'ai_generated';
 
-    // Derive source from event_type
     if (event.event_type) {
         if (event.event_type.includes('schedule')) {
             taskSource = 'ai_schedule';
         } else if (event.event_type.includes('reminder') || ['follow_up', 'research', 'preparation', 'networking', 'application_deadline'].includes(event.event_type)) {
             taskSource = `ai_reminder_${event.event_type}`;
         } else {
-            taskSource = `ai_${event.event_type}`; // Generic AI source
+            taskSource = `ai_${event.event_type}`;
         }
     }
 
@@ -81,13 +179,13 @@ function mapCalendarEventToTaskData(event: CalendarEventRow, userId: string): Ta
         due_date: event.event_date || null,
         priority: 'medium',
         status: taskStatus,
-        source: taskSource, // Set the source
+        source: taskSource,
         related_calendar_event_id: event.id,
         related_application_id: event.related_application_id || null,
     };
 }
 
-// --- generateSmartReminders (Updated to use the new mapAIEventToTaskData) ---
+// --- generateSmartReminders (Kept as is) ---
 export async function generateSmartReminders(date: Date, applications: any[], companies: any[]): Promise<void> {
   if (!isOpenAIConfigured() || !openai) { console.warn("OpenAI not configured for smart reminders."); return; }
   const { data: authData } = await supabase.auth.getUser();
@@ -143,8 +241,7 @@ export async function generateSmartReminders(date: Date, applications: any[], co
   } catch (error: any) { console.error('Error in generateSmartReminders:', error); if (error instanceof OpenAI.APIError) { console.error(`OpenAI API Error: ${error.status} ${error.name} ${error.message}`); } }
 }
 
-
-// --- generateJobHuntingSchedule (Updated to use the new mapAIEventToTaskData) ---
+// --- generateJobHuntingSchedule (Kept as is) ---
 export async function generateJobHuntingSchedule(applications: any[], companies: any[]): Promise<void> {
     if (!isOpenAIConfigured() || !openai) { console.warn("OpenAI not configured for schedule."); return; }
     const { data: authData } = await supabase.auth.getUser();
@@ -159,7 +256,7 @@ export async function generateJobHuntingSchedule(applications: any[], companies:
         const appContext = applications.slice(0, 10).map(app => ({ id: app.id, position: app.position, next_follow_up: app.next_follow_up, company_name: app.companies?.name }));
         const companyContext = companies.slice(0, 10).map(c => ({ id: c.id, name: c.name }));
 
-        const response = await openai.chat.completions.create({ /* ... OpenAI prompt parameters ... */
+        const response = await openai.chat.completions.create({
             model: "gpt-4-turbo", response_format: { type: "json_object" },
             messages: [ { role: "system", content: `You are an expert career coach. Create a structured job hunting schedule for the upcoming week (${dateRangeStr}) based on user context. Generate a JSON object containing a single key "schedule_items", which is an array of event objects. Each event object MUST have: "title" (string, specific action), "date" (string, 'YYYY-MM-DD' format, MUST be within ${dateRangeStr}), "type" (string, e.g., 'job_search', 'application', 'networking', 'preparation', 'follow_up'), and "description" (string, optional brief detail). Optionally include "related_application_id" (string) if an action pertains to ONE specific application from the context. Aim for a balanced schedule across the week (e.g., 1-3 meaningful tasks per day). Prioritize based on upcoming follow-ups. Example item: {"title": "Search for new Data Analyst roles", "date": "${scheduleDates[0]}", "type": "job_search", "description": "Spend 1 hour on LinkedIn/Indeed."} Example item: {"title": "Follow up on Senior Dev application", "date": "${scheduleDates[2]}", "type": "follow_up", "description": "Check status via email.", "related_application_id": "uuid-goes-here-or-null"} Ensure output is valid JSON. The "schedule_items" array should be inside a parent JSON object.` }, { role: "user", content: `Generate JSON schedule items for the week ${dateRangeStr}. Context: Applications: ${JSON.stringify(appContext)} Target Companies: ${JSON.stringify(companyContext)}` } ],
             temperature: 0.7, max_tokens: 1000,
@@ -203,7 +300,7 @@ export async function generateJobHuntingSchedule(applications: any[], companies:
 }
 
 
-// --- Other AI functions (Restored to original functional state) ---
+// --- Other AI functions (Kept as is) ---
 export async function suggestNetworkingActions(applications: any[], companies: any[]): Promise<string | null> {
   if (!isOpenAIConfigured() || !openai) {
     console.warn("OpenAI not configured. Cannot suggest networking actions.");
@@ -262,20 +359,6 @@ export async function generateWeeklyRecapEmail(stats: any, firstName: string): P
    }
 }
 
-export async function analyzeResume(resumeText: string): Promise<string> {
-  if (!isOpenAIConfigured() || !openai) return "OpenAI API key not configured. Resume analysis unavailable.";
-  try {
-     const response = await openai.chat.completions.create({
-         model: "gpt-4-turbo",
-         messages: [ { role: "system", content: "You are a resume analyst. Provide actionable feedback." }, { role: "user", content: `Analyze this resume: ${resumeText}. Give feedback on: overall impression, strengths, improvements, ATS optimization.` } ]
-     });
-     return response.choices[0].message.content || "Could not analyze resume.";
-  } catch (error: any) {
-     console.error("Error analyzing resume:", error);
-     if (error instanceof OpenAI.APIError) return `Resume analysis error: ${error.message}`;
-     return "An unexpected error occurred while analyzing the resume.";
-  }
-}
 
 export async function analyzeJobDescription(jobDescription: string): Promise<string> {
   if (!isOpenAIConfigured() || !openai) return "OpenAI API key not configured. Job description analysis unavailable.";
