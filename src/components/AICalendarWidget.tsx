@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { format } from 'date-fns';
 import { CalendarIcon, RefreshCw, X, Check, Link as LinkIcon } from 'lucide-react';
-import { generateSmartReminders, generateJobHuntingSchedule } from '../lib/openai'; // Assuming these exist
+import { generateSmartReminders, generateJobHuntingSchedule } from '../lib/openai';
 import { supabase } from '../lib/supabase';
 import { Link } from 'react-router-dom';
 import FullCalendar from '@fullcalendar/react';
@@ -12,10 +12,8 @@ import { HoverCard, HoverCardContent, HoverCardTrigger } from "./ui/hover-card";
 import { Button } from "./ui/button";
 import { cn } from '../lib/utils';
 
-// Base FullCalendar styles might need to be imported globally or ensure they are loaded
 import './AICalendarWidget.css';
 
-// --- Types ---
 interface AICalendarWidgetProps {
   applications: any[];
   companies: any[];
@@ -35,15 +33,11 @@ interface CalendarEvent {
   updated_at?: string;
 }
 
-// --- Component ---
 export default function AICalendarWidget({ applications, companies }: AICalendarWidgetProps) {
-  // State
-  const [selectedDate, setSelectedDate] = useState(new Date()); // Keep track of selected date for AI actions
+  const [selectedDate, setSelectedDate] = useState(new Date());
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState({ schedule: false, reminders: false, events: true });
-  // Removed showTaskCard state
 
-  // --- Data Fetching ---
   const fetchCalendarEvents = useCallback(async () => {
     setLoading(prev => ({ ...prev, events: true }));
     const { data: authData } = await supabase.auth.getUser();
@@ -67,16 +61,14 @@ export default function AICalendarWidget({ applications, companies }: AICalendar
     } finally {
         setLoading(prev => ({ ...prev, events: false }));
     }
-  }, []); // Dependency array is correct
+  }, []);
 
   useEffect(() => {
     fetchCalendarEvents();
   }, [fetchCalendarEvents]);
 
-  // --- AI Generation ---
   const handleGenerateSchedule = async () => {
     setLoading(prev => ({ ...prev, schedule: true }));
-    // Removed setShowTaskCard(false);
     try {
       if (generateJobHuntingSchedule) {
           await generateJobHuntingSchedule(applications, companies);
@@ -88,19 +80,16 @@ export default function AICalendarWidget({ applications, companies }: AICalendar
 
   const handleGenerateRemindersForDate = async (dateToGenerate: Date) => {
       setLoading(prev => ({...prev, reminders: true }));
-      // Removed setShowTaskCard(false);
       try {
          if (generateSmartReminders) {
              await generateSmartReminders(dateToGenerate, applications, companies);
              await fetchCalendarEvents();
-             setSelectedDate(dateToGenerate); // Still select date for context
-             // Removed setShowTaskCard(true);
+             setSelectedDate(dateToGenerate);
          } else { alert("AI Reminder generation feature not available."); }
       } catch (error) { console.error("Error generating reminders:", error); alert(`Failed to generate reminders: ${(error as Error).message}`);
       } finally { setLoading(prev => ({...prev, reminders: false })); }
-  }
+  };
 
-  // --- Event Interaction ---
   const toggleEventComplete = async (eventId: string, currentStatus: boolean) => {
     const { data: authData } = await supabase.auth.getUser();
     if (!authData.user) return;
@@ -116,29 +105,31 @@ export default function AICalendarWidget({ applications, companies }: AICalendar
   };
 
   const handleDateClick = (arg: DateClickArg) => {
-    // Still update selectedDate for AI actions, but don't show side card
     setSelectedDate(arg.date);
-    // Removed setShowTaskCard(true);
-    console.log("Date clicked:", arg.dateStr); // Optional log
+    console.log("Date clicked:", arg.dateStr);
   };
 
   const handleEventClick = (clickInfo: EventClickArg) => {
-    // Handle event clicks differently now - maybe navigate or just log
-    console.log('Event Clicked (no side panel action):', clickInfo.event.title, clickInfo.event.extendedProps);
-     // Prevent default browser action if any
-     clickInfo.jsEvent.preventDefault();
-     // Optional: You could open a modal here instead of the side panel
-     // Or navigate if related_task_id/related_application_id exists?
+    console.log('Event Clicked:', clickInfo.event.title, clickInfo.event.extendedProps);
+    clickInfo.jsEvent.preventDefault();
   };
 
-  // --- Formatting for FullCalendar (Keep as is) ---
   const formattedEvents = events.map(event => ({
-    id: event.id, title: event.title, start: event.event_date, allDay: true,
-    extendedProps: { description: event.description, eventType: event.event_type, completed: event.completed, originalId: event.id, related_application_id: event.related_application_id, related_task_id: event.related_task_id },
+    id: event.id,
+    title: event.title,
+    start: event.event_date,
+    allDay: true,
+    extendedProps: {
+      description: event.description,
+      eventType: event.event_type,
+      completed: event.completed,
+      originalId: event.id,
+      related_application_id: event.related_application_id,
+      related_task_id: event.related_task_id
+    },
     className: event.completed ? 'fc-event-completed' : 'fc-event-pending',
-   }));
+  }));
 
-  // --- Custom Event Rendering with Hover Card (Ensuring wrap + z-index) ---
   const renderEventContent = (eventInfo: EventContentArg) => {
     const { event } = eventInfo;
     const { description, eventType, completed, originalId, related_application_id, related_task_id } = event.extendedProps;
@@ -155,28 +146,65 @@ export default function AICalendarWidget({ applications, companies }: AICalendar
             className={cn(
                 "max-w-xs text-sm rounded-lg shadow-xl border",
                 "bg-popover text-popover-foreground",
-                "z-[9999]" // Keep high z-index
+                "z-[9999]"
             )}
             side="top" align="center" sideOffset={6}
         >
           <div className="space-y-2 p-3">
-             {/* Title (with wrapping) */}
-            <h4 className="font-semibold break-words leading-tight">{event.title}</h4>
-             {/* Description (with wrapping) */}
-            {description && (
+             <h4 className="font-semibold break-words leading-tight">{event.title}</h4>
+             {description && (
                 <p className="text-muted-foreground text-xs break-words">
                     {description}
                 </p>
-            )}
-             <p className="flex items-center justify-between text-xs border-t border-border pt-1.5 mt-1.5"> <span className="text-muted-foreground">Status:</span> <span className={cn("font-medium", completed ? 'text-green-600 dark:text-green-400' : 'text-blue-600 dark:text-blue-400')}> {completed ? 'Completed' : 'Pending'} </span> </p>
-            {eventType && ( <p className='text-xs text-muted-foreground'>Type: <span className='font-medium capitalize text-foreground ml-1'>{eventType.replace(/_/g, ' ')}</span></p> )}
-             {(related_application_id || related_task_id) && <div className='pt-1.5 mt-1.5 border-t border-border space-y-1'>
-                 {related_application_id && ( <Link to={`/applications#${related_application_id}`} className="text-xs text-primary/90 hover:text-primary hover:underline flex items-center gap-1 w-fit" onClick={(e) => e.stopPropagation()}> <LinkIcon className="h-3 w-3" /> View Application </Link> )}
-                 {related_task_id && ( <Link to={`/tasks#${related_task_id}`} className="text-xs text-primary/90 hover:text-primary hover:underline flex items-center gap-1 w-fit" onClick={(e) => e.stopPropagation()}> <LinkIcon className="h-3 w-3" /> View Task </Link> )}
-             </div>}
-             <Button variant="outline" size="sm" className="w-full mt-2 h-8 text-xs" onClick={(e) => { e.stopPropagation(); toggleEventComplete(originalId, completed); }} >
-                 {completed ? ( <X className="mr-1.5 h-3.5 w-3.5 text-muted-foreground" /> ) : ( <Check className="mr-1.5 h-3.5 w-3.5 text-green-600" /> )}
-                Mark as {completed ? 'Pending' : 'Complete'}
+             )}
+             <p className="flex items-center justify-between text-xs border-t border-border pt-1.5 mt-1.5">
+               <span className="text-muted-foreground">Status:</span>
+               <span className={cn("font-medium", completed ? 'text-green-600 dark:text-green-400' : 'text-blue-600 dark:text-blue-400')}>
+                 {completed ? 'Completed' : 'Pending'}
+               </span>
+             </p>
+             {eventType && (
+               <p className='text-xs text-muted-foreground'>
+                 Type: <span className='font-medium capitalize text-foreground ml-1'>{eventType.replace(/_/g, ' ')}</span>
+               </p>
+             )}
+             {(related_application_id || related_task_id) && (
+               <div className='pt-1.5 mt-1.5 border-t border-border space-y-1'>
+                 {related_application_id && (
+                   <Link
+                     to={`/applications#${related_application_id}`}
+                     className="text-xs text-primary/90 hover:text-primary hover:underline flex items-center gap-1 w-fit"
+                     onClick={(e) => e.stopPropagation()}
+                   >
+                     <LinkIcon className="h-3 w-3" /> View Application
+                   </Link>
+                 )}
+                 {related_task_id && (
+                   <Link
+                     to={`/tasks#${related_task_id}`}
+                     className="text-xs text-primary/90 hover:text-primary hover:underline flex items-center gap-1 w-fit"
+                     onClick={(e) => e.stopPropagation()}
+                   >
+                     <LinkIcon className="h-3 w-3" /> View Task
+                   </Link>
+                 )}
+               </div>
+             )}
+             <Button
+               variant="outline"
+               size="sm"
+               className="w-full mt-2 h-8 text-xs"
+               onClick={(e) => {
+                 e.stopPropagation();
+                 toggleEventComplete(originalId, completed);
+               }}
+             >
+               {completed ? (
+                 <X className="mr-1.5 h-3.5 w-3.5 text-muted-foreground" />
+               ) : (
+                 <Check className="mr-1.5 h-3.5 w-3.5 text-green-600" />
+               )}
+               Mark as {completed ? 'Pending' : 'Complete'}
              </Button>
           </div>
         </HoverCardContent>
@@ -184,58 +212,73 @@ export default function AICalendarWidget({ applications, companies }: AICalendar
     );
   };
 
-  // Removed getEventsForSelectedDate function
-
-  // --- JSX ---
   return (
     <div className="space-y-4">
-      {/* Header (remains the same) */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-         <h2 className="text-xl font-semibold flex items-center gap-2 text-foreground"> <CalendarIcon className="h-5 w-5" /> AI Calendar Assistant </h2>
-         <div className="flex gap-2 flex-wrap">
-            <Button variant="outline" onClick={() => handleGenerateRemindersForDate(selectedDate)} disabled={loading.reminders || loading.schedule} size="sm" title={`Generate AI tasks for ${format(selectedDate, 'MMM d')}`} > <RefreshCw className={`h-4 w-4 mr-2 ${loading.reminders ? 'animate-spin' : ''}`} /> Gen Tasks ({format(selectedDate, 'MMM d')}) </Button>
-            <Button onClick={handleGenerateSchedule} disabled={loading.schedule || loading.reminders} size="sm" title="Generate suggested calendar events for the week" > <RefreshCw className={`h-4 w-4 mr-2 ${loading.schedule ? 'animate-spin' : ''}`} /> Suggest Week </Button>
-         </div>
-      </div>
-
-      {/* --- MODIFIED Main Content Area --- */}
-      {/* Removed grid layout, calendar now takes full width of its container */}
-      <div>
-        {/* Calendar Section */}
-        <div>
-          {loading.events && ( <div className="flex items-center justify-center h-64 bg-card/50 rounded-lg border"> <RefreshCw className="h-6 w-6 animate-spin text-primary" /> </div> )}
-          {!loading.events && (
-              <div className="calendar-container relative z-0 p-1 bg-card rounded-lg border shadow-sm text-sm">
-                <FullCalendar
-                    key={events.length}
-                    plugins={[dayGridPlugin, interactionPlugin]}
-                    initialView="dayGridMonth"
-                    events={formattedEvents}
-                    eventContent={renderEventContent} // Uses updated function with wrapping
-                    dateClick={handleDateClick}
-                    eventClick={handleEventClick}
-                    headerToolbar={{ left: 'prev,next today', center: 'title', right: '' }}
-                    height="auto"
-                    dayMaxEvents={2}
-                    moreLinkClassNames={"text-xs text-primary hover:underline p-0.5"}
-                    displayEventTime={false}
-                    weekends={true}
-                    viewClassNames={"text-xs"}
-                    dayHeaderClassNames={"text-xs"}
-                />
-              </div>
-          )}
-           {/* Legend (remains the same) */}
-           <div className="mt-2 flex gap-4 text-xs px-1 text-muted-foreground">
-                <div className="flex items-center gap-1.5"> <span className="fc-event-dot bg-primary"></span> <span>Pending</span> </div>
-                <div className="flex items-center gap-1.5"> <span className="fc-event-dot bg-green-500"></span> <span>Completed</span> </div>
-           </div>
+      <div className="flex flex-col gap-4">
+        <h2 className="text-xl font-semibold flex items-center gap-2 text-foreground">
+          <CalendarIcon className="h-5 w-5" /> Your Calendar
+        </h2>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            variant="outline"
+            onClick={() => handleGenerateRemindersForDate(selectedDate)}
+            disabled={loading.reminders || loading.schedule}
+            size="sm"
+            title={`Generate AI tasks for ${format(selectedDate, 'MMM d')}`}
+          >
+            <RefreshCw className={`h-4 w-4 mr-2 ${loading.reminders ? 'animate-spin' : ''}`} />
+            Gen Tasks ({format(selectedDate, 'MMM d')})
+          </Button>
+          <Button
+            onClick={handleGenerateSchedule}
+            disabled={loading.schedule || loading.reminders}
+            size="sm"
+            title="Generate suggested calendar events for the week"
+          >
+            <RefreshCw className={`h-4 w-4 mr-2 ${loading.schedule ? 'animate-spin' : ''}`} />
+            Suggest Week
+          </Button>
         </div>
-
-        {/* --- REMOVED Side Card Section --- */}
-
       </div>
-      {/* --- End MODIFIED Main Content Area --- */}
+
+      <div>
+        {loading.events && (
+          <div className="flex items-center justify-center h-64 bg-card/50 rounded-lg border">
+            <RefreshCw className="h-6 w-6 animate-spin text-primary" />
+          </div>
+        )}
+        {!loading.events && (
+          <div className="calendar-container relative z-0 p-1 bg-card rounded-lg border shadow-sm text-sm">
+            <FullCalendar
+              key={events.length}
+              plugins={[dayGridPlugin, interactionPlugin]}
+              initialView="dayGridMonth"
+              events={formattedEvents}
+              eventContent={renderEventContent}
+              dateClick={handleDateClick}
+              eventClick={handleEventClick}
+              headerToolbar={{ left: 'prev,next today', center: 'title', right: '' }}
+              height="auto"
+              dayMaxEvents={2}
+              moreLinkClassNames={"text-xs text-primary hover:underline p-0.5"}
+              displayEventTime={false}
+              weekends={true}
+              viewClassNames={"text-xs"}
+              dayHeaderClassNames={"text-xs"}
+            />
+          </div>
+        )}
+        <div className="mt-2 flex gap-4 text-xs px-1 text-muted-foreground">
+          <div className="flex items-center gap-1.5">
+            <span className="fc-event-dot bg-primary"></span>
+            <span>Pending</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="fc-event-dot bg-green-500"></span>
+            <span>Completed</span>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
