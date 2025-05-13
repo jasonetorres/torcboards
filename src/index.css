@@ -13,16 +13,16 @@
     --popover: 225 25% 35%;
     --popover-foreground: 210 40% 98%;
     
-    --primary: 252 100% 69%;
+    --primary: 217 100% 50%;
     --primary-foreground: 210 40% 98%;
     
     --secondary: 217 32% 17%;
     --secondary-foreground: 210 40% 98%;
     
     --muted: 217 32% 17%;
-    --muted-foreground: 215 20.2% 65.1%;
+    --muted-foreground: 215 20.2% 85.1%;
     
-    --accent: 252 100% 69%;
+    --accent: 217 100% 50%;
     --accent-foreground: 210 40% 98%;
     
     --destructive: 0 62.8% 30.6%;
@@ -30,11 +30,11 @@
     
     --border: 217 32% 17%;
     --input: 217 32% 17%;
-    --ring: 252 100% 69%;
+    --ring: 217 100% 50%;
     
     --radius: 0.75rem;
 
-    --chart-1: 252 100% 69%;
+    --chart-1: 217 100% 50%;
     --chart-2: 199 89% 48%;
     --chart-3: 332 93% 56%;
     --chart-4: 130 93% 45%;
@@ -81,7 +81,7 @@
 }
 
 .bg-gradient-primary {
-  background: linear-gradient(to right, hsl(252 100% 69%), hsl(262 100% 69%));
+  background: linear-gradient(to right, hsl(217 100% 50%), hsl(217 100% 50%));
 }
 
 /* Glass effect */
@@ -91,6 +91,6 @@
 
 @layer base {
   body {
-    @apply bg-gradient-dark text-foreground;
+    @apply bg-gradient-dark text-foreground font-graphik;
   }
 }

@@ -19,7 +19,7 @@ export default {
         background: 'hsl(var(--background))',
         foreground: 'hsl(var(--foreground))',
         primary: {
-          DEFAULT: 'hsl(var(--primary))',
+          DEFAULT: '#0044FF',
           foreground: 'hsl(var(--primary-foreground))'
         },
         secondary: {
@@ -35,7 +35,7 @@ export default {
           foreground: 'hsl(var(--muted-foreground))'
         },
         accent: {
-          DEFAULT: 'hsl(var(--accent))',
+          DEFAULT: '#0044FF',
           foreground: 'hsl(var(--accent-foreground))'
         },
         popover: {
@@ -47,7 +47,7 @@ export default {
           foreground: 'hsl(var(--card-foreground))'
         },
         chart: {
-          '1': 'hsl(var(--chart-1))',
+          '1': '#0044FF',
           '2': 'hsl(var(--chart-2))',
           '3': 'hsl(var(--chart-3))',
           '4': 'hsl(var(--chart-4))',
@@ -60,12 +60,12 @@ export default {
         sm: 'calc(var(--radius) - 4px)'
       },
       fontFamily: {
-        sans: ['Inter var', 'sans-serif'],
+        graphik: ['graphik', 'sans-serif'],
       },
       backgroundImage: {
         'gradient-dark': 'linear-gradient(to bottom right, hsl(225 25% 10%), hsl(252 25% 8%))',
-        'gradient-card': 'linear-gradient(to bottom right, hsl(225 25% 15%), hsl(252 25% 13%))',
-        'gradient-primary': 'linear-gradient(to right, hsl(252 100% 69%), hsl(262 100% 69%))',
+        'gradient-card': 'linear-gradient(to bottom right, hsl(225 25% 35%), hsl(252 25% 33%))',
+        'gradient-primary': 'linear-gradient(to right, #0044FF, #0044FF)',
       }
     }
   },
