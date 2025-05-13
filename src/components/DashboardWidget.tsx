@@ -70,49 +70,49 @@ export function DashboardWidget({
       style={style}
       className={cn(
         colSpanClass,
-        "relative flex flex-col",
+        "relative flex flex-col min-h-[200px]",
         "bg-card/80 backdrop-blur-sm shadow-lg border-border/50 text-card-foreground rounded-lg",
         "overflow-hidden touch-manipulation",
         isDragging ? "shadow-xl opacity-80" : ""
       )}
     >
-      <div className="absolute top-1 right-1 z-20 flex items-center gap-1 bg-background/70 backdrop-blur-sm p-1 rounded-md opacity-100 shadow">
+      <div className="absolute top-1 right-1 z-20 flex items-center gap-1 bg-background/70 backdrop-blur-sm p-0.5 rounded-md opacity-100 shadow">
         <button
           onClick={handleResizeHorizontal}
-          className="text-muted-foreground hover:text-foreground p-1 rounded hover:bg-muted/50 touch-manipulation"
+          className="text-muted-foreground hover:text-foreground p-0.5 rounded hover:bg-muted/50 touch-manipulation"
           title="Cycle horizontal size"
           aria-label="Cycle horizontal size"
         >
-          <ArrowsOutLineHorizontal className="h-4 w-4" />
+          <ArrowsOutLineHorizontal className="h-3.5 w-3.5" />
         </button>
         <button
           onClick={handleResizeVertical}
-          className="text-muted-foreground hover:text-foreground p-1 rounded hover:bg-muted/50 touch-manipulation"
+          className="text-muted-foreground hover:text-foreground p-0.5 rounded hover:bg-muted/50 touch-manipulation"
           title="Cycle vertical size"
           aria-label="Cycle vertical size"
         >
-          <ArrowsOutLineVertical className="h-4 w-4" />
+          <ArrowsOutLineVertical className="h-3.5 w-3.5" />
         </button>
         <button
           onClick={handleRemoveClick}
-          className="text-muted-foreground hover:text-destructive p-1 rounded hover:bg-muted/50 touch-manipulation"
+          className="text-muted-foreground hover:text-destructive p-0.5 rounded hover:bg-muted/50 touch-manipulation"
           title="Remove widget"
           aria-label="Remove widget"
         >
-          <Trash2 className="h-4 w-4" />
+          <Trash2 className="h-3.5 w-3.5" />
         </button>
         <div
           {...attributes}
           {...listeners}
-          className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground p-1 rounded hover:bg-muted/50 touch-manipulation"
+          className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground p-0.5 rounded hover:bg-muted/50 touch-manipulation"
           title="Drag to reorder"
           aria-label="Drag handle"
         >
-          <GripVertical className="h-4 w-4" />
+          <GripVertical className="h-3.5 w-3.5" />
         </div>
       </div>
 
-      <div className="p-4 sm:p-6 pt-10 flex-grow flex flex-col overflow-y-auto">
+      <div className="p-3 sm:p-4 pt-8 flex-grow flex flex-col overflow-y-auto">
         {children}
       </div>
     </div>
