@@ -4,7 +4,7 @@
  
 @layer base {
   :root {
-    --background: 225 25% 10%;
+    --background: 0 0% 7%;
     --foreground: 210 40% 98%;
     
     --card: 220 15% 30%;
@@ -73,7 +73,7 @@
 
 /* Custom background gradients */
 .bg-gradient-dark {
-  background: linear-gradient(to bottom right, hsl(220 15% 10%), hsl(220 15% 8%));
+  background: linear-gradient(to bottom right, hsl(0 0% 7%), hsl(0 0% 4%));
 }
 
 .bg-gradient-card {
