@@ -137,7 +137,6 @@ const Tasks = () => {
       case 'low':
         return <ArrowDownCircle className="h-4 w-4 text-green-500 flex-shrink-0" />;
       default:
-        // Fallback for null or unexpected priority string
         return <Circle className="h-4 w-4 text-gray-400 flex-shrink-0" />;
     }
   };

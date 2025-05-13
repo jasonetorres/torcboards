@@ -101,7 +101,7 @@ const Navbar = () => {
             <Link to="/" className="flex items-center space-x-2 text-foreground hover:text-primary transition-colors">
               {/* Use the provided image URL */}
               <img
-                src="https://i.postimg.cc/vHhQk3qf/communitypage.png" // <-- Updated URL
+                src="https://i.postimg.cc/C5F28cfV/torcboards.png" // <-- Updated URL
                 alt="torcBoard CRM Logo" // Keep descriptive alt text
                 className="h-8 w-auto object-contain" // Adjust size (h-8) as needed
               />
