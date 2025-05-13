@@ -40,9 +40,11 @@ export default function AICalendarWidget({ applications, companies }: AICalendar
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    // Delay mounting state to ensure DOM is ready
     const timer = setTimeout(() => {
       setMounted(true);
-    }, 100); // Small delay to ensure DOM is ready
+    }, 250); // Increased delay to ensure calendar is fully rendered
+    
     return () => {
       clearTimeout(timer);
       setMounted(false);
@@ -145,6 +147,7 @@ export default function AICalendarWidget({ applications, companies }: AICalendar
     const { event } = eventInfo;
     const { description, eventType, completed, originalId, related_application_id, related_task_id } = event.extendedProps;
 
+    // Basic content for when component is not mounted
     if (!mounted) {
       return (
         <div className="fc-event-title-container truncate w-full h-full flex items-center p-0.5">
@@ -154,83 +157,88 @@ export default function AICalendarWidget({ applications, companies }: AICalendar
       );
     }
 
+    // Enhanced content with HoverCard when mounted
     return (
-      <HoverCard openDelay={200} closeDelay={100}>
-        <HoverCardTrigger asChild className="fc-event-trigger w-full h-full block cursor-pointer">
-          <div className="fc-event-title-container truncate w-full h-full flex items-center p-0.5">
-             <span className={cn("fc-event-dot mr-1 flex-shrink-0", completed ? "bg-green-500" : "bg-primary" )}></span>
-            <span className="fc-event-main-title flex-grow truncate text-xs">{event.title}</span>
-          </div>
-        </HoverCardTrigger>
+      <div className="fc-event-title-container truncate w-full h-full">
         {mounted && (
-          <HoverCardContent
+          <HoverCard openDelay={200} closeDelay={100}>
+            <HoverCardTrigger asChild>
+              <div className="flex items-center p-0.5 cursor-pointer">
+                <span className={cn("fc-event-dot mr-1 flex-shrink-0", completed ? "bg-green-500" : "bg-primary" )}></span>
+                <span className="fc-event-main-title flex-grow truncate text-xs">{event.title}</span>
+              </div>
+            </HoverCardTrigger>
+            <HoverCardContent
               className={cn(
-                  "max-w-xs text-sm rounded-lg shadow-xl border",
-                  "bg-popover text-popover-foreground",
-                  "z-[9999]"
+                "max-w-xs text-sm rounded-lg shadow-xl border",
+                "bg-popover text-popover-foreground",
+                "z-[9999]"
               )}
-              side="top" align="center" sideOffset={6}
-          >
-            <div className="space-y-2 p-3">
-               <h4 className="font-semibold break-words leading-tight">{event.title}</h4>
-               {description && (
+              side="top"
+              align="center"
+              sideOffset={6}
+            >
+              <div className="space-y-2 p-3">
+                <h4 className="font-semibold break-words leading-tight">{event.title}</h4>
+                {description && (
                   <p className="text-muted-foreground text-xs break-words">
-                      {description}
+                    {description}
                   </p>
-               )}
-               <p className="flex items-center justify-between text-xs border-t border-border pt-1.5 mt-1.5">
-                 <span className="text-muted-foreground">Status:</span>
-                 <span className={cn("font-medium", completed ? 'text-green-600 dark:text-green-400' : 'text-blue-600 dark:text-blue-400')}>
-                   {completed ? 'Completed' : 'Pending'}
-                 </span>
-               </p>
-               {eventType && (
-                 <p className='text-xs text-muted-foreground'>
-                   Type: <span className='font-medium capitalize text-foreground ml-1'>{eventType.replace(/_/g, ' ')}</span>
-                 </p>
-               )}
-               {(related_application_id || related_task_id) && (
-                 <div className='pt-1.5 mt-1.5 border-t border-border space-y-1'>
-                   {related_application_id && (
-                     <Link
-                       to={`/applications#${related_application_id}`}
-                       className="text-xs text-primary/90 hover:text-primary hover:underline flex items-center gap-1 w-fit"
-                       onClick={(e) => e.stopPropagation()}
-                     >
-                       <LinkIcon className="h-3 w-3" /> View Application
-                     </Link>
-                   )}
-                   {related_task_id && (
-                     <Link
-                       to={`/tasks#${related_task_id}`}
-                       className="text-xs text-primary/90 hover:text-primary hover:underline flex items-center gap-1 w-fit"
-                       onClick={(e) => e.stopPropagation()}
-                     >
-                       <LinkIcon className="h-3 w-3" /> View Task
-                     </Link>
-                   )}
-                 </div>
-               )}
-               <Button
-                 variant="outline"
-                 size="sm"
-                 className="w-full mt-2 h-8 text-xs"
-                 onClick={(e) => {
-                   e.stopPropagation();
-                   toggleEventComplete(originalId, completed);
-                 }}
-               >
-                 {completed ? (
-                   <X className="mr-1.5 h-3.5 w-3.5 text-muted-foreground" />
-                 ) : (
-                   <Check className="mr-1.5 h-3.5 w-3.5 text-green-600" />
-                 )}
-                 Mark as {completed ? 'Pending' : 'Complete'}
-               </Button>
-            </div>
-          </HoverCardContent>
+                )}
+                <p className="flex items-center justify-between text-xs border-t border-border pt-1.5 mt-1.5">
+                  <span className="text-muted-foreground">Status:</span>
+                  <span className={cn("font-medium", completed ? 'text-green-600 dark:text-green-400' : 'text-blue-600 dark:text-blue-400')}>
+                    {completed ? 'Completed' : 'Pending'}
+                  </span>
+                </p>
+                {eventType && (
+                  <p className='text-xs text-muted-foreground'>
+                    Type: <span className='font-medium capitalize text-foreground ml-1'>{eventType.replace(/_/g, ' ')}</span>
+                  </p>
+                )}
+                {(related_application_id || related_task_id) && (
+                  <div className='pt-1.5 mt-1.5 border-t border-border space-y-1'>
+                    {related_application_id && (
+                      <Link
+                        to={`/applications#${related_application_id}`}
+                        className="text-xs text-primary/90 hover:text-primary hover:underline flex items-center gap-1 w-fit"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <LinkIcon className="h-3 w-3" /> View Application
+                      </Link>
+                    )}
+                    {related_task_id && (
+                      <Link
+                        to={`/tasks#${related_task_id}`}
+                        className="text-xs text-primary/90 hover:text-primary hover:underline flex items-center gap-1 w-fit"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <LinkIcon className="h-3 w-3" /> View Task
+                      </Link>
+                    )}
+                  </div>
+                )}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full mt-2 h-8 text-xs"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    toggleEventComplete(originalId, completed);
+                  }}
+                >
+                  {completed ? (
+                    <X className="mr-1.5 h-3.5 w-3.5 text-muted-foreground" />
+                  ) : (
+                    <Check className="mr-1.5 h-3.5 w-3.5 text-green-600" />
+                  )}
+                  Mark as {completed ? 'Pending' : 'Complete'}
+                </Button>
+              </div>
+            </HoverCardContent>
+          </HoverCard>
         )}
-      </HoverCard>
+      </div>
     );
   };
 
