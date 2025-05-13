@@ -81,7 +81,7 @@
 }
 
 .bg-gradient-primary {
-  background: linear-gradient(to right, hsl(217 100% 50%), hsl(217 100% 50%));
+  background: linear-gradient(to right, #0044FF, #0044FF);
 }
 
 /* Glass effect */

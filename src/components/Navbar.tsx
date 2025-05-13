@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import {
-   Target, Timer, LayoutDashboard, Wand2, CheckSquare, Menu, X, Settings, ChevronDown, FileText, LogOut, Briefcase // Added Briefcase back for nav links
+   Target, Timer, LayoutDashboard, Wand2, CheckSquare, Menu, X, Settings, ChevronDown, FileText, LogOut, Briefcase
 } from 'lucide-react';
 
 import { supabase } from '../lib/supabase';
@@ -10,7 +10,6 @@ import type { RootState } from '../store';
 import { cn } from '../lib/utils';
 
 const Navbar = () => {
-  // --- State & Refs (unchanged) ---
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
@@ -18,17 +17,13 @@ const Navbar = () => {
   const mobileMenuRef = useRef<HTMLDivElement>(null);
   const mobileMenuButtonRef = useRef<HTMLButtonElement>(null);
 
-
-  // --- Hooks (unchanged) ---
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const location = useLocation();
 
-  // --- Global State (unchanged) ---
   const theme = useSelector((state: RootState) => state.theme.theme);
   const user = useSelector((state: RootState) => state.auth.user);
 
-  // --- Handlers (unchanged) ---
   const handleSignOut = async () => {
     setIsUserMenuOpen(false);
     setIsMenuOpen(false);
@@ -43,9 +38,6 @@ const Navbar = () => {
     }
   };
 
-
-
-  // Effect to close menus (unchanged)
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (
@@ -73,7 +65,6 @@ const Navbar = () => {
     };
   }, [isUserMenuOpen, isMenuOpen]);
 
-  // --- Navigation Links (unchanged) ---
   const navLinks = [
     { to: "/", icon: <LayoutDashboard className="h-4 w-4" />, label: "Dashboard" },
     { to: "/applications", icon: <Briefcase className="h-4 w-4" />, label: "Applications" },
@@ -84,36 +75,28 @@ const Navbar = () => {
     { to: "/ai-tools", icon: <Wand2 className="h-4 w-4" />, label: "AI Tools" },
   ];
 
-  // --- Active Link Check (unchanged) ---
   const isActive = (path: string) => location.pathname === path;
 
-  // --- Render Logic ---
   return (
     <nav className={cn(
         "sticky top-0 z-50",
-        "bg-background/80 backdrop-blur-lg",
-        "border-b border-border/50"
+        "bg-card/80 backdrop-blur-lg border-b border-border/50"
     )}>
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
-          {/* --- Logo/Brand with URL --- */}
           <div className="flex items-center">
             <Link to="/" className="flex items-center space-x-2 text-foreground hover:text-primary transition-colors">
-              {/* Use the provided image URL */}
               <img
-                src="https://i.postimg.cc/C5F28cfV/torcboards.png" // <-- Updated URL
-                alt="torcBoard CRM Logo" // Keep descriptive alt text
-                className="h-8 w-auto object-contain" // Adjust size (h-8) as needed
+                src="https://i.postimg.cc/C5F28cfV/torcboards.png"
+                alt="torcBoard CRM Logo"
+                className="h-8 w-auto object-contain"
               />
               <span className="font-bold text-xl hidden sm:inline">
                 torcBoard CRM
               </span>
             </Link>
           </div>
-          {/* --- End Logo/Brand --- */}
 
-
-          {/* Desktop Navigation & Actions (unchanged) */}
           <div className="hidden md:flex items-center space-x-1 lg:space-x-2">
             {navLinks.map((link) => (
               <Link
@@ -177,9 +160,7 @@ const Navbar = () => {
             )}
           </div>
 
-          {/* Mobile Menu Button & Theme Toggle (unchanged) */}
           <div className="md:hidden flex items-center">
- 
             <button
               ref={mobileMenuButtonRef}
               onClick={() => setIsMenuOpen(!isMenuOpen)}
@@ -191,7 +172,6 @@ const Navbar = () => {
           </div>
         </div>
 
-        {/* Mobile Navigation Menu (unchanged) */}
         <div ref={mobileMenuRef} className={cn("md:hidden transition-all duration-300 ease-in-out overflow-hidden", isMenuOpen ? "max-h-screen pb-4" : "max-h-0")}>
              <div className={cn("flex flex-col space-y-1 pt-2")}>
               {user && (
@@ -257,6 +237,6 @@ const Navbar = () => {
       </div>
     </nav>
   );
-}
+};
 
 export default Navbar;
