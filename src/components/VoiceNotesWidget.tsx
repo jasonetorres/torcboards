@@ -41,9 +41,14 @@ export function VoiceNotesWidget({ onClose }: VoiceNotesWidgetProps) {
   const [displayedTranscript, setDisplayedTranscript] = useState('');
   const [lastProcessed, setLastProcessed] = useState<ProcessedNote | null>(null);
   const [statusText, setStatusText] = useState('Ready to listen...');
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+    return () => setMounted(false);
+  }, []);
 
   const mainContentDisplay = lastProcessed ? (
-    // Content display logic here
     <div>Content</div>
   ) : displayedTranscript ? (
     <p className="text-foreground">{displayedTranscript}</p>
@@ -58,6 +63,10 @@ export function VoiceNotesWidget({ onClose }: VoiceNotesWidgetProps) {
   const handleActionButtonClick = () => {
     // Action button click handler logic
   };
+
+  if (!mounted) {
+    return null;
+  }
 
   return (
     <div className={cn(
