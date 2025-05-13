@@ -30,13 +30,9 @@ const safeFormatDate = (dateInput: string | null | undefined, formatString: stri
   if (!dateInput) return null;
   try {
     const date = new Date(dateInput);
-    if (!isValid(date)) {
-       return 'Invalid Date';
-    }
+    if (!isValid(date)) { return 'Invalid Date'; }
     return format(date, formatString, { locale: enUS });
-  } catch (e) {
-      return 'Format Error';
-  }
+  } catch (e) { return 'Format Error'; }
 };
 
 const Dashboard = () => {
@@ -175,90 +171,97 @@ const Dashboard = () => {
   const availableWidgets = widgets.filter((w) => !w.enabled);
 
   return (
-    <main className="min-h-screen w-full relative flex justify-center px-4 pt-16 pb-16 overflow-x-hidden">
+    <main className="min-h-screen w-full relative flex justify-center px-2 sm:px-4 pt-12 pb-16 overflow-y-auto">
       <div className="fixed inset-0 z-0">
-        <img src="https://img.heroui.chat/image/landscape?w=1920&h=1080&u=1" className="w-full h-full object-cover" alt="Dashboard Background" />
+        <img src="https://img.heroui.chat/image/landscape?w=1920&h=1080&u=1" className="w-full h-full object-cover" alt="Background" />
         <div className="absolute inset-0 bg-black/20" />
       </div>
 
       <div className="w-full max-w-7xl z-10">
-        <div className="space-y-6">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 text-white mix-blend-screen">
-            <div className="flex items-center gap-4">
-              <h1 className="text-2xl sm:text-3xl font-bold">Dashboard</h1>
-               <button onClick={() => setShowVoiceAssistant(!showVoiceAssistant)} className={`p-2 rounded-full transition-colors ${showVoiceAssistant ? 'bg-red-500 hover:bg-red-600' : 'bg-primary hover:bg-primary/90'} text-white`} title={showVoiceAssistant ? "Close Voice Assistant" : "Open Voice Assistant"} aria-label={showVoiceAssistant ? "Close Voice Assistant" : "Open Voice Assistant"}>
-                   <Mic className="h-5 w-5 sm:h-6 sm:w-6" />
-               </button>
+        <div className="space-y-4">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+            <h1 className="text-xl sm:text-2xl font-bold text-white mix-blend-screen">Dashboard</h1>
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <button
+                onClick={() => setShowVoiceAssistant(!showVoiceAssistant)}
+                className={`p-1.5 rounded-full transition-colors ${showVoiceAssistant ? 'bg-red-500 hover:bg-red-600' : 'bg-primary hover:bg-primary/90'} text-white`}
+                title={showVoiceAssistant ? "Close Voice Assistant" : "Open Voice Assistant"}
+                aria-label={showVoiceAssistant ? "Close Voice Assistant" : "Open Voice Assistant"}
+              >
+                <Mic className="h-4 w-4 sm:h-5 sm:w-5" />
+              </button>
+              <button
+                onClick={() => setIsWidgetMenuOpen(!isWidgetMenuOpen)}
+                className="flex-1 sm:flex-none bg-primary hover:bg-primary/90 text-white px-3 py-1.5 rounded-md flex items-center justify-center gap-2 text-sm transition-colors"
+              >
+                <Plus className="h-4 w-4" />
+                <span>Add Widget</span>
+              </button>
             </div>
-             <button onClick={() => setIsWidgetMenuOpen(!isWidgetMenuOpen)} className="w-full sm:w-auto bg-primary hover:bg-primary/90 text-white px-4 py-2 rounded-md flex items-center justify-center gap-2 text-sm transition-colors">
-                 <Plus className="h-4 w-4 sm:h-5 sm:w-5" /> <span>Add Widget</span>
-            </button>
           </div>
 
           {isWidgetMenuOpen && (
-             <div className="bg-card/80 backdrop-blur-sm p-4 rounded-lg shadow-lg text-card-foreground">
-                <h2 className="text-lg font-semibold mb-3">Available Widgets</h2>
-                {availableWidgets.length > 0 ? (
-                  <div className="space-y-2 mt-2 max-h-60 overflow-y-auto">
-                    {availableWidgets.map(widget => (
-                      <button
-                        key={widget.id}
-                        onClick={() => handleToggleWidget(widget.type)}
-                        className="w-full text-left p-3 bg-muted hover:bg-primary/10 hover:text-primary rounded-md transition-colors flex items-center justify-between text-sm group"
-                      >
-                        <span className="capitalize">
-                          {widget.type.replace(/([A-Z])/g, ' $1').toLowerCase()}
-                        </span>
-                        <Plus className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
-                      </button>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-sm text-muted-foreground mt-2">
-                    All available widgets are already displayed.
-                  </p>
-                )}
-                <button onClick={() => setIsWidgetMenuOpen(false)} className="mt-4 text-primary hover:underline text-sm">Close Menu</button>
-             </div>
+            <div className="bg-card/80 backdrop-blur-sm p-3 rounded-lg shadow-lg text-card-foreground">
+              <h2 className="text-base font-semibold mb-2">Available Widgets</h2>
+              {availableWidgets.length > 0 ? (
+                <div className="space-y-1.5 mt-2 max-h-60 overflow-y-auto">
+                  {availableWidgets.map(widget => (
+                    <button
+                      key={widget.id}
+                      onClick={() => handleToggleWidget(widget.type)}
+                      className="w-full text-left p-2 bg-muted hover:bg-primary/10 hover:text-primary rounded-md transition-colors flex items-center justify-between text-sm group"
+                    >
+                      <span className="capitalize">
+                        {widget.type.replace(/([A-Z])/g, ' $1').toLowerCase()}
+                      </span>
+                      <Plus className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground mt-2">
+                  All available widgets are already displayed.
+                </p>
+              )}
+              <button onClick={() => setIsWidgetMenuOpen(false)} className="mt-3 text-primary hover:underline text-sm">
+                Close Menu
+              </button>
+            </div>
           )}
 
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
             <SortableContext items={enabledWidgets.map((w) => w.id)} strategy={verticalListSortingStrategy}>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 auto-rows-min">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 auto-rows-min">
                 {enabledWidgets.map((widget) => (
                   widgetComponents[widget.type] ? (
-                     <DashboardWidget
-                        key={widget.id}
-                        id={widget.id}
-                        type={widget.type}
-                        size={widget.size}
-                        onResize={(newSize: WidgetSize) => handleResizeWidget(widget.id, newSize)}
-                        onRemove={() => handleToggleWidget(widget.type)}
-                     >
-                        {widgetComponents[widget.type]}
-                     </DashboardWidget>
-                  ) : (
-                      <div key={widget.id} className="p-4 bg-red-100 text-red-700 rounded shadow">
-                          Widget type "{widget.type}" component not found.
-                      </div>
-                  )
+                    <DashboardWidget
+                      key={widget.id}
+                      id={widget.id}
+                      type={widget.type}
+                      size={widget.size}
+                      onResize={(newSize: WidgetSize) => handleResizeWidget(widget.id, newSize)}
+                      onRemove={() => handleToggleWidget(widget.type)}
+                    >
+                      {widgetComponents[widget.type]}
+                    </DashboardWidget>
+                  ) : null
                 ))}
               </div>
             </SortableContext>
           </DndContext>
 
-           {enabledWidgets.length === 0 && !isWidgetMenuOpen && (
-              <div className="col-span-full text-center py-10 text-muted-foreground bg-card/80 backdrop-blur-sm rounded-lg shadow-lg">
-                 <p>No widgets are currently enabled.</p>
-                 <p>Click "Add Widget" above to add some!</p>
-              </div>
-           )}
+          {enabledWidgets.length === 0 && !isWidgetMenuOpen && (
+            <div className="col-span-full text-center py-8 text-muted-foreground bg-card/80 backdrop-blur-sm rounded-lg shadow-lg">
+              <p>No widgets are currently enabled.</p>
+              <p>Click "Add Widget" above to add some!</p>
+            </div>
+          )}
         </div>
       </div>
 
-       {showVoiceAssistant && (
-           <VoiceNotesWidget onClose={() => setShowVoiceAssistant(false)} />
-       )}
+      {showVoiceAssistant && (
+        <VoiceNotesWidget onClose={() => setShowVoiceAssistant(false)} />
+      )}
     </main>
   );
 };
