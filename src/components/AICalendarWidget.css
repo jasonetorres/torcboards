@@ -1,7 +1,7 @@
 /* Calendar Container */
 .calendar-container .fc { 
   font-size: 0.9rem;
-  background-color: transparent;
+  background-color: hsl(var(--card));
   color: hsl(var(--card-foreground));
   border: none;
 }
@@ -32,7 +32,7 @@
 
 /* Day Headers (Mon, Tue, etc.) */
 .calendar-container .fc-col-header-cell {
-    background-color: hsl(var(--muted)/0.8);
+    background-color: hsl(var(--muted));
     color: hsl(var(--muted-foreground));
     border: 1px solid hsl(var(--border));
     font-weight: 500;
@@ -42,7 +42,7 @@
 .calendar-container .fc-daygrid-day {
     border: 1px solid hsl(var(--border));
     transition: background-color 0.1s ease-in-out;
-    background-color: hsl(var(--card)/0.5);
+    background-color: hsl(var(--card));
 }
 .calendar-container .fc-daygrid-day:hover {
     background-color: hsl(var(--muted)/0.6);
@@ -140,16 +140,23 @@
 
 /* Popover styling */
 .fc-popover {
-    background-color: hsl(var(--card)/0.95) !important;
-    backdrop-filter: blur(8px) !important;
+    position: fixed !important;
+    top: 50% !important;
+    left: 50% !important;
+    transform: translate(-50%, -50%) !important;
+    background-color: hsl(var(--card)) !important;
     border: 1px solid hsl(var(--border)) !important;
     border-radius: var(--radius) !important;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1) !important;
     overflow: hidden !important;
+    max-width: 90vw !important;
+    width: auto !important;
+    min-width: 200px !important;
+    max-height: 90vh !important;
 }
 
 .fc-popover-header {
-    background-color: hsl(var(--muted)/0.5) !important;
+    background-color: hsl(var(--muted)) !important;
     padding: 0.5rem !important;
     border-bottom: 1px solid hsl(var(--border)) !important;
 }
@@ -173,7 +180,7 @@
 
 .fc-popover-body {
     padding: 0.5rem !important;
-    max-height: 300px !important;
+    max-height: 70vh !important;
     overflow-y: auto !important;
 }
 
