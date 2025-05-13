@@ -4,7 +4,7 @@ import { Briefcase, Clock, Target, Plus, Mic, Wand2, RefreshCw, X, Check, Link a
 import { format, isValid } from 'date-fns';
 import { enUS } from 'date-fns/locale';
 import { load } from 'cheerio';
-import { generateSmartReminders, generateJobHuntingSchedule } from '../lib/openai';
+import { generateSmartReminders, generateJobHuntingSchedule, analyzeJobDescription, getInterviewPrep } from '../lib/openai';
 import { supabase } from '../lib/supabase';
 import { useSelector } from 'react-redux';
 import { getRandomQuote } from '../lib/utils';
