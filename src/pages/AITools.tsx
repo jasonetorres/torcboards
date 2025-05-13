@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Briefcase, Clock, Target, Plus, Mic, Wand2, RefreshCw, X, Check, Link as LinkIcon } from 'lucide-react';
+import { Briefcase, Clock, Target, Plus, Mic, Wand2, RefreshCw, X, Check, Link as LinkIcon, Building2, Users, ChevronUp, ChevronDown } from 'lucide-react';
 import { format, isValid } from 'date-fns';
 import { enUS } from 'date-fns/locale';
-import { load } from 'cheerio'; // Changed from default import to named import
+import { load } from 'cheerio';
 import { generateSmartReminders, generateJobHuntingSchedule } from '../lib/openai';
 import { supabase } from '../lib/supabase';
 import { useSelector } from 'react-redux';
@@ -17,10 +17,19 @@ import type { Database } from '../lib/supabase-types';
 import { WidgetType, toggleWidget, reorderWidgets, resizeWidget } from '../store/dashboardSlice';
 import type { RootState } from '../store';
 import TasksWidget from '../components/TasksWidget';
+import { Card, CardHeader, CardBody } from '../components/ui/card';
+import ReactMarkdown from 'react-markdown';
 
 type Application = Database['public']['Tables']['applications']['Row'];
 type Company = Database['public']['Tables']['companies']['Row'];
 type WidgetSize = { cols: number; rows: number };
+type Analysis = {
+  id: string;
+  created_at: string;
+  type: 'job' | 'interview';
+  input: string;
+  result: string;
+};
 
 // Helper function for safe date formatting WITH EXPLICIT LOCALE and console logs REMOVED
 const safeFormatDate = (dateInput: string | null | undefined, formatString: string): string | null => {
