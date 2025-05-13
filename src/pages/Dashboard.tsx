@@ -190,7 +190,7 @@ const Dashboard = () => {
                    <Mic className="h-5 w-5 sm:h-6 sm:w-6" />
                </button>
             </div>
-             <button onClick={() => setIsWidgetMenuOpen(!isWidgetMenuOpen)} className="w-full sm:w-auto bg-white/80 backdrop-blur-sm text-black px-4 py-2 rounded-md flex items-center justify-center gap-2 text-sm hover:bg-white/95 transition-colors">
+             <button onClick={() => setIsWidgetMenuOpen(!isWidgetMenuOpen)} className="w-full sm:w-auto bg-primary hover:bg-primary/90 text-white px-4 py-2 rounded-md flex items-center justify-center gap-2 text-sm transition-colors">
                  <Plus className="h-4 w-4 sm:h-5 sm:w-5" /> <span>Add Widget</span>
             </button>
           </div>
