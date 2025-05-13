@@ -34,19 +34,29 @@ interface CalendarEvent {
 }
 
 export default function AICalendarWidget({ applications, companies }: AICalendarWidgetProps) {
-  const [selectedDate, setSelectedDate] = useState(new Date());
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState({ schedule: false, reminders: false, events: true });
   const [mounted, setMounted] = useState(false);
+  const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
+  const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
     const timer = setTimeout(() => {
       setMounted(true);
     }, 250);
     
+    // Check if device is mobile
+    const checkMobile = () => {
+      setIsMobile(window.matchMedia('(max-width: 768px)').matches);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    
     return () => {
       clearTimeout(timer);
       setMounted(false);
+      window.removeEventListener('resize', checkMobile);
     };
   }, []);
 
@@ -96,7 +106,6 @@ export default function AICalendarWidget({ applications, companies }: AICalendar
          if (generateSmartReminders) {
              await generateSmartReminders(dateToGenerate, applications, companies);
              await fetchCalendarEvents();
-             setSelectedDate(dateToGenerate);
          } else { alert("AI Reminder generation feature not available."); }
       } catch (error) { console.error("Error generating reminders:", error); alert(`Failed to generate reminders: ${(error as Error).message}`);
       } finally { setLoading(prev => ({...prev, reminders: false })); }
@@ -113,17 +122,127 @@ export default function AICalendarWidget({ applications, companies }: AICalendar
           .eq('user_id', authData.user.id);
         if (error) throw error;
         await fetchCalendarEvents();
+        setSelectedEventId(null); // Close the event details after toggling
     } catch(error) { console.error("Error updating event status:", error); alert(`Failed to update event status: ${(error as Error).message}`); }
   };
 
   const handleDateClick = (arg: DateClickArg) => {
-    setSelectedDate(arg.date);
     console.log("Date clicked:", arg.dateStr);
   };
 
   const handleEventClick = (clickInfo: EventClickArg) => {
-    console.log('Event Clicked:', clickInfo.event.title, clickInfo.event.extendedProps);
+    if (isMobile) {
+      setSelectedEventId(selectedEventId === clickInfo.event.extendedProps.originalId ? null : clickInfo.event.extendedProps.originalId);
+    }
     clickInfo.jsEvent.preventDefault();
+  };
+
+  const renderEventContent = (eventInfo: EventContentArg) => {
+    const { event } = eventInfo;
+    const { description, eventType, completed, originalId, related_application_id, related_task_id } = event.extendedProps;
+    const isSelected = selectedEventId === originalId;
+
+    const eventContent = (
+      <div className="fc-event-title-container truncate w-full h-full flex items-center p-0.5">
+        <span className={cn("fc-event-dot mr-1 flex-shrink-0", completed ? "bg-green-500" : "bg-primary" )}></span>
+        <span className="fc-event-main-title flex-grow truncate text-xs">{event.title}</span>
+      </div>
+    );
+
+    const detailsContent = (
+      <div className="space-y-2 p-3">
+        <h4 className="font-semibold break-words leading-tight">{event.title}</h4>
+        {description && (
+          <p className="text-muted-foreground text-xs break-words">
+            {description}
+          </p>
+        )}
+        <p className="flex items-center justify-between text-xs border-t border-border pt-1.5 mt-1.5">
+          <span className="text-muted-foreground">Status:</span>
+          <span className={cn("font-medium", completed ? 'text-green-600 dark:text-green-400' : 'text-blue-600 dark:text-blue-400')}>
+            {completed ? 'Completed' : 'Pending'}
+          </span>
+        </p>
+        {eventType && (
+          <p className='text-xs text-muted-foreground'>
+            Type: <span className='font-medium capitalize text-foreground ml-1'>{eventType.replace(/_/g, ' ')}</span>
+          </p>
+        )}
+        {(related_application_id || related_task_id) && (
+          <div className='pt-1.5 mt-1.5 border-t border-border space-y-1'>
+            {related_application_id && (
+              <Link
+                to={`/applications#${related_application_id}`}
+                className="text-xs text-primary/90 hover:text-primary hover:underline flex items-center gap-1 w-fit"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <LinkIcon className="h-3 w-3" /> View Application
+              </Link>
+            )}
+            {related_task_id && (
+              <Link
+                to={`/tasks#${related_task_id}`}
+                className="text-xs text-primary/90 hover:text-primary hover:underline flex items-center gap-1 w-fit"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <LinkIcon className="h-3 w-3" /> View Task
+              </Link>
+            )}
+          </div>
+        )}
+        <Button
+          variant="outline"
+          size="sm"
+          className="w-full mt-2 h-8 text-xs"
+          onClick={(e) => {
+            e.stopPropagation();
+            toggleEventComplete(originalId, completed);
+          }}
+        >
+          {completed ? (
+            <X className="mr-1.5 h-3.5 w-3.5 text-muted-foreground" />
+          ) : (
+            <Check className="mr-1.5 h-3.5 w-3.5 text-green-600" />
+          )}
+          Mark as {completed ? 'Pending' : 'Complete'}
+        </Button>
+      </div>
+    );
+
+    if (isMobile) {
+      return (
+        <>
+          {eventContent}
+          {isSelected && (
+            <div className="absolute left-0 right-0 z-50 mt-1 bg-popover border border-border rounded-lg shadow-lg">
+              {detailsContent}
+            </div>
+          )}
+        </>
+      );
+    }
+
+    return mounted ? (
+      <HoverCard openDelay={200} closeDelay={100}>
+        <HoverCardTrigger asChild>
+          <div className="cursor-pointer">
+            {eventContent}
+          </div>
+        </HoverCardTrigger>
+        <HoverCardContent
+          className={cn(
+            "max-w-xs text-sm rounded-lg shadow-xl border",
+            "bg-popover text-popover-foreground",
+            "z-[9999]"
+          )}
+          side="top"
+          align="center"
+          sideOffset={6}
+        >
+          {detailsContent}
+        </HoverCardContent>
+      </HoverCard>
+    ) : eventContent;
   };
 
   const formattedEvents = events.map(event => ({
@@ -142,103 +261,6 @@ export default function AICalendarWidget({ applications, companies }: AICalendar
     className: event.completed ? 'fc-event-completed' : 'fc-event-pending',
   }));
 
-  const renderEventContent = (eventInfo: EventContentArg) => {
-    const { event } = eventInfo;
-    const { description, eventType, completed, originalId, related_application_id, related_task_id } = event.extendedProps;
-
-    if (!mounted) {
-      return (
-        <div className="fc-event-title-container truncate w-full h-full flex items-center p-0.5">
-          <span className={cn("fc-event-dot mr-1 flex-shrink-0", completed ? "bg-green-500" : "bg-primary" )}></span>
-          <span className="fc-event-main-title flex-grow truncate text-xs">{event.title}</span>
-        </div>
-      );
-    }
-
-    return (
-      <div className="fc-event-title-container truncate w-full h-full">
-        {mounted && (
-          <HoverCard openDelay={200} closeDelay={100}>
-            <HoverCardTrigger asChild>
-              <div className="flex items-center p-0.5 cursor-pointer">
-                <span className={cn("fc-event-dot mr-1 flex-shrink-0", completed ? "bg-green-500" : "bg-primary" )}></span>
-                <span className="fc-event-main-title flex-grow truncate text-xs">{event.title}</span>
-              </div>
-            </HoverCardTrigger>
-            <HoverCardContent
-              className={cn(
-                "max-w-xs text-sm rounded-lg shadow-xl border",
-                "bg-popover text-popover-foreground",
-                "z-[9999]"
-              )}
-              side="top"
-              align="center"
-              sideOffset={6}
-            >
-              <div className="space-y-2 p-3">
-                <h4 className="font-semibold break-words leading-tight">{event.title}</h4>
-                {description && (
-                  <p className="text-muted-foreground text-xs break-words">
-                    {description}
-                  </p>
-                )}
-                <p className="flex items-center justify-between text-xs border-t border-border pt-1.5 mt-1.5">
-                  <span className="text-muted-foreground">Status:</span>
-                  <span className={cn("font-medium", completed ? 'text-green-600 dark:text-green-400' : 'text-blue-600 dark:text-blue-400')}>
-                    {completed ? 'Completed' : 'Pending'}
-                  </span>
-                </p>
-                {eventType && (
-                  <p className='text-xs text-muted-foreground'>
-                    Type: <span className='font-medium capitalize text-foreground ml-1'>{eventType.replace(/_/g, ' ')}</span>
-                  </p>
-                )}
-                {(related_application_id || related_task_id) && (
-                  <div className='pt-1.5 mt-1.5 border-t border-border space-y-1'>
-                    {related_application_id && (
-                      <Link
-                        to={`/applications#${related_application_id}`}
-                        className="text-xs text-primary/90 hover:text-primary hover:underline flex items-center gap-1 w-fit"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <LinkIcon className="h-3 w-3" /> View Application
-                      </Link>
-                    )}
-                    {related_task_id && (
-                      <Link
-                        to={`/tasks#${related_task_id}`}
-                        className="text-xs text-primary/90 hover:text-primary hover:underline flex items-center gap-1 w-fit"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <LinkIcon className="h-3 w-3" /> View Task
-                      </Link>
-                    )}
-                  </div>
-                )}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="w-full mt-2 h-8 text-xs"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    toggleEventComplete(originalId, completed);
-                  }}
-                >
-                  {completed ? (
-                    <X className="mr-1.5 h-3.5 w-3.5 text-muted-foreground" />
-                  ) : (
-                    <Check className="mr-1.5 h-3.5 w-3.5 text-green-600" />
-                  )}
-                  Mark as {completed ? 'Pending' : 'Complete'}
-                </Button>
-              </div>
-            </HoverCardContent>
-          </HoverCard>
-        )}
-      </div>
-    );
-  };
-
   return (
     <div className="space-y-4">
       <div className="flex flex-col gap-4">
@@ -248,13 +270,13 @@ export default function AICalendarWidget({ applications, companies }: AICalendar
         <div className="flex flex-wrap gap-2">
           <Button
             variant="outline"
-            onClick={() => handleGenerateRemindersForDate(selectedDate)}
+            onClick={() => handleGenerateRemindersForDate(new Date())}
             disabled={loading.reminders || loading.schedule}
             size="sm"
-            title={`Generate AI tasks for ${format(selectedDate, 'MMM d')}`}
+            title="Generate AI tasks for today"
           >
             <RefreshCw className={`h-4 w-4 mr-2 ${loading.reminders ? 'animate-spin' : ''}`} />
-            Gen Tasks ({format(selectedDate, 'MMM d')})
+            Generate Tasks
           </Button>
           <Button
             onClick={handleGenerateSchedule}
@@ -277,7 +299,6 @@ export default function AICalendarWidget({ applications, companies }: AICalendar
         {!loading.events && (
           <div className="calendar-container relative z-0 p-1 bg-card rounded-lg border shadow-sm text-sm">
             <FullCalendar
-              key={events.length}
               plugins={[dayGridPlugin, interactionPlugin]}
               initialView="dayGridMonth"
               events={formattedEvents}
