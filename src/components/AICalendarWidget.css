@@ -1,7 +1,7 @@
 /* Calendar Container */
 .calendar-container .fc { 
   font-size: 0.9rem;
-  background-color: transparent; /* Changed from solid color to transparent */
+  background-color: transparent;
   color: hsl(var(--card-foreground));
   border: none;
 }
@@ -32,7 +32,7 @@
 
 /* Day Headers (Mon, Tue, etc.) */
 .calendar-container .fc-col-header-cell {
-    background-color: hsl(var(--muted)/0.8); /* Increased opacity */
+    background-color: hsl(var(--muted)/0.8);
     color: hsl(var(--muted-foreground));
     border: 1px solid hsl(var(--border));
     font-weight: 500;
@@ -42,7 +42,7 @@
 .calendar-container .fc-daygrid-day {
     border: 1px solid hsl(var(--border));
     transition: background-color 0.1s ease-in-out;
-    background-color: hsl(var(--card)/0.5); /* Added semi-transparent background */
+    background-color: hsl(var(--card)/0.5);
 }
 .calendar-container .fc-daygrid-day:hover {
     background-color: hsl(var(--muted)/0.6);
@@ -59,23 +59,23 @@
 .fc-event {
   border: none !important;
   cursor: pointer;
-  margin-bottom: 3px;
-  padding: 2px 4px;
+  margin-bottom: 2px;
+  padding: 2px;
   border-radius: 4px;
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   overflow: hidden;
-  max-width: 100%; /* Ensure events don't overflow */
-  white-space: normal !important; /* Allow text wrapping */
-  line-height: 1.2; /* Improve readability of wrapped text */
+  max-width: 100%;
+  white-space: normal !important;
+  line-height: 1.2;
 }
 
-/* Event container improvements */
+/* Event container */
 .fc-event-main {
   padding: 0 !important;
-  min-height: 20px; /* Minimum height for better visibility */
+  min-height: 18px;
 }
 
-/* Ensure hover trigger fills event space */
+/* Event trigger area */
 .fc-event-trigger {
     display: block;
     width: 100%;
@@ -85,28 +85,28 @@
 /* Event content structure */
 .fc-event-title-container {
     display: flex;
-    align-items: flex-start; /* Changed from center to allow proper wrapping */
-    gap: 4px;
+    align-items: flex-start;
+    gap: 3px;
     width: 100%;
     overflow: hidden;
-    padding: 2px 0;
+    padding: 1px 2px;
 }
 
 .fc-event-main-title {
-    white-space: normal; /* Allow text wrapping */
+    white-space: normal;
     overflow: hidden;
-    word-break: break-word; /* Better word breaking */
+    word-break: break-word;
     flex-grow: 1;
-    font-size: 0.75rem; /* Slightly smaller font */
+    font-size: 0.75rem;
     line-height: 1.2;
 }
 
 .fc-event-dot {
-    width: 6px;
-    height: 6px;
+    width: 5px;
+    height: 5px;
     border-radius: 50%;
     flex-shrink: 0;
-    margin-top: 3px; /* Align with first line of text */
+    margin-top: 3px;
 }
 
 /* Status-specific event styles */
@@ -130,11 +130,51 @@
     text-decoration: line-through;
 }
 
-/* More events indicator */
+/* More events link */
 .fc-daygrid-more-link {
     font-size: 0.75rem !important;
-    margin: 0 4px !important;
-    padding: 2px 0 !important;
+    margin: 2px 4px !important;
+    padding: 1px 0 !important;
+    color: hsl(var(--primary)) !important;
+}
+
+/* Popover styling */
+.fc-popover {
+    background-color: hsl(var(--card)/0.95) !important;
+    backdrop-filter: blur(8px) !important;
+    border: 1px solid hsl(var(--border)) !important;
+    border-radius: var(--radius) !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1) !important;
+    overflow: hidden !important;
+}
+
+.fc-popover-header {
+    background-color: hsl(var(--muted)/0.5) !important;
+    padding: 0.5rem !important;
+    border-bottom: 1px solid hsl(var(--border)) !important;
+}
+
+.fc-popover-title {
+    font-size: 0.875rem !important;
+    font-weight: 500 !important;
+    color: hsl(var(--foreground)) !important;
+}
+
+.fc-popover-close {
+    font-size: 1.25rem !important;
+    color: hsl(var(--muted-foreground)) !important;
+    opacity: 0.7 !important;
+    transition: opacity 0.2s !important;
+}
+
+.fc-popover-close:hover {
+    opacity: 1 !important;
+}
+
+.fc-popover-body {
+    padding: 0.5rem !important;
+    max-height: 300px !important;
+    overflow-y: auto !important;
 }
 
 /* Schedule Card Markdown */
@@ -153,22 +193,4 @@
 /* Ensure HoverCard content appears above FullCalendar */
 [data-radix-hover-card-content] {
     z-index: 50;
-}
-
-/* Popup styling improvements */
-.fc-popover {
-    z-index: 40 !important;
-    background-color: hsl(var(--card)) !important;
-    border: 1px solid hsl(var(--border)) !important;
-    border-radius: var(--radius) !important;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1) !important;
-}
-
-.fc-popover-header {
-    background-color: hsl(var(--muted)) !important;
-    padding: 0.5rem !important;
-}
-
-.fc-popover-body {
-    padding: 0.5rem !important;
 }
