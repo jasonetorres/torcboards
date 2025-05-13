@@ -1,26 +1,43 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Building2, Users, Wand2, Plus, RefreshCw, Upload, ExternalLink } from 'lucide-react';
-import ReactMarkdown from 'react-markdown';
-import { analyzeJobDescription, getInterviewPrep } from '../lib/openai';
+import { Briefcase, Clock, Target, Plus, Mic, Wand2, RefreshCw, X, Check, Link as LinkIcon } from 'lucide-react';
+import { format, isValid } from 'date-fns';
+import { enUS } from 'date-fns/locale';
+import { load } from 'cheerio'; // Changed from default import to named import
+import { generateSmartReminders, generateJobHuntingSchedule } from '../lib/openai';
 import { supabase } from '../lib/supabase';
 import { useSelector } from 'react-redux';
-import { format } from 'date-fns';
-import { RootState } from '../store';
-import { Card, CardBody, CardHeader } from '@heroui/react';
-import { cn } from '../lib/utils';
-import cheerio from 'cheerio';
+import { getRandomQuote } from '../lib/utils';
+import { DashboardWidget } from '../components/DashboardWidget';
+import AICalendarWidget from '../components/AICalendarWidget';
+import { PomodoroWidget } from '../components/PomodoroWidget';
+import { VoiceNotesWidget } from '../components/VoiceNotesWidget';
+import { ResumeWidget } from '../components/ResumeWidget';
+import type { Database } from '../lib/supabase-types';
+import { WidgetType, toggleWidget, reorderWidgets, resizeWidget } from '../store/dashboardSlice';
+import type { RootState } from '../store';
+import TasksWidget from '../components/TasksWidget';
 
-interface Analysis {
-  id: string;
-  type: string;
-  input: string;
-  result: string;
-  created_at: string;
-}
+type Application = Database['public']['Tables']['applications']['Row'];
+type Company = Database['public']['Tables']['companies']['Row'];
+type WidgetSize = { cols: number; rows: number };
+
+// Helper function for safe date formatting WITH EXPLICIT LOCALE and console logs REMOVED
+const safeFormatDate = (dateInput: string | null | undefined, formatString: string): string | null => {
+  if (!dateInput) return null;
+  try {
+    const date = new Date(dateInput);
+    if (!isValid(date)) {
+       return 'Invalid Date';
+    }
+    return format(date, formatString, { locale: enUS });
+  } catch (e) {
+      return 'Format Error';
+  }
+};
 
 const AITools = () => {
-  const [activeTab, setActiveTab] = useState<'job' | 'interview' | 'listing'>('job');
+  const [activeTab, setActiveTab] = useState<'job' | 'interview'>('job');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState('');
   const [analyses, setAnalyses] = useState<Analysis[]>([]);
@@ -51,21 +68,19 @@ const AITools = () => {
       .limit(20);
 
     if (error) {
-      console.error("Error fetching AI analyses:", error);
+        console.error("Error fetching AI analyses:", error);
     } else if (data) {
-      setAnalyses(data);
+        setAnalyses(data);
     }
   };
 
   const saveAnalysis = async (type: string, input: string, result: string) => {
     if (!user) return;
-    const { error } = await supabase
-      .from('ai_analyses')
-      .insert({ user_id: user.id, type, input, result });
+    const { error } = await supabase.from('ai_analyses').insert({ user_id: user.id, type, input, result });
     if (error) {
-      console.error("Error saving AI analysis:", error);
+        console.error("Error saving AI analysis:", error);
     } else {
-      fetchAnalyses();
+        fetchAnalyses();
     }
   };
 
@@ -99,40 +114,19 @@ const AITools = () => {
     setLoading(false);
   };
 
-  const handleAnalyzeJobListing = async () => {
-    if (!jobUrl || !user) return;
-    setLoading(true);
-    setResult('');
-    try {
-      // Fetch job listing content
-      const response = await fetch(jobUrl);
-      const html = await response.text();
-      const $ = cheerio.load(html);
-      
-      // Extract job description - this is a basic example, adjust selectors based on target sites
-      let jobText = '';
-      $('div, section, article').each((_, element) => {
-        const text = $(element).text();
-        if (text.toLowerCase().includes('job description') || 
-            text.toLowerCase().includes('responsibilities') || 
-            text.toLowerCase().includes('requirements')) {
-          jobText += text + '\n';
-        }
-      });
-
-      if (!jobText) {
-        throw new Error('Could not extract job description from the provided URL');
-      }
-
-      // Analyze the extracted content
-      const analysis = await analyzeJobDescription(jobText);
-      setResult(analysis || 'No analysis returned.');
-      if (analysis) await saveAnalysis('listing', jobUrl, analysis);
-    } catch (error: any) {
-      console.error('Error analyzing job listing:', error);
-      setResult(`Error analyzing job listing: ${error.message || 'Please try again.'}`);
+  const loadAnalysis = (analysis: Analysis) => {
+    setResult(analysis.result);
+    if (analysis.type === 'job') {
+        setJobDescription(analysis.input);
+        setActiveTab('job');
+    } else if (analysis.type === 'interview') {
+        const inputParts = analysis.input.split(' at ');
+        setPosition(inputParts[0] || '');
+        setCompany(inputParts[1] || '');
+        setActiveTab('interview');
     }
-    setLoading(false);
+     setShowHistory(false);
+     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   return (
@@ -151,161 +145,122 @@ const AITools = () => {
           <h1 className="text-3xl font-bold text-white mix-blend-screen">AI Career Tools</h1>
 
           <Card className="bg-card/80 backdrop-blur-sm shadow-lg border-border/50">
-            <CardBody className="p-6">
-              <div className="flex flex-wrap gap-4 mb-6">
-                <button
-                  onClick={() => { setActiveTab('job'); setResult(''); }}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-md transition-colors text-sm sm:text-base w-full sm:w-auto justify-center ${
-                    activeTab === 'job'
-                      ? 'bg-primary text-primary-foreground'
-                      : 'bg-muted hover:bg-muted/80 text-muted-foreground'
-                  }`}
-                >
-                  <Building2 className="h-5 w-5" />
-                  Job Analysis
-                </button>
-                <button
-                  onClick={() => { setActiveTab('interview'); setResult(''); }}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-md transition-colors text-sm sm:text-base w-full sm:w-auto justify-center ${
-                    activeTab === 'interview'
-                      ? 'bg-primary text-primary-foreground'
-                      : 'bg-muted hover:bg-muted/80 text-muted-foreground'
-                  }`}
-                >
-                  <Users className="h-5 w-5" />
-                  Interview Prep
-                </button>
-                <button
-                  onClick={() => { setActiveTab('listing'); setResult(''); }}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-md transition-colors text-sm sm:text-base w-full sm:w-auto justify-center ${
-                    activeTab === 'listing'
-                      ? 'bg-primary text-primary-foreground'
-                      : 'bg-muted hover:bg-muted/80 text-muted-foreground'
-                  }`}
-                >
-                  <ExternalLink className="h-5 w-5" />
-                  Analyze Job Listing
-                </button>
-              </div>
+             <CardBody className="p-6">
+                 <div className="flex flex-wrap gap-4 mb-6">
+                   <button
+                     onClick={() => { setActiveTab('job'); setResult(''); }}
+                     className={`flex items-center gap-2 px-4 py-2 rounded-md transition-colors text-sm sm:text-base w-full sm:w-auto justify-center ${
+                       activeTab === 'job'
+                         ? 'bg-primary text-primary-foreground'
+                         : 'bg-muted hover:bg-muted/80 text-muted-foreground'
+                     }`}
+                   >
+                     <Building2 className="h-5 w-5" />
+                     Job Analysis
+                   </button>
+                   <button
+                     onClick={() => { setActiveTab('interview'); setResult(''); }}
+                     className={`flex items-center gap-2 px-4 py-2 rounded-md transition-colors text-sm sm:text-base w-full sm:w-auto justify-center ${
+                       activeTab === 'interview'
+                         ? 'bg-primary text-primary-foreground'
+                         : 'bg-muted hover:bg-muted/80 text-muted-foreground'
+                     }`}
+                   >
+                     <Users className="h-5 w-5" />
+                     Interview Prep
+                   </button>
+                 </div>
 
-              <div className="space-y-4">
-                {activeTab === 'job' && (
-                  <>
-                    <div>
-                      <label htmlFor="jobDesc" className="block text-sm font-medium mb-2 text-card-foreground/80">
-                        Paste job description
-                      </label>
-                      <textarea
-                        id="jobDesc"
-                        value={jobDescription}
-                        onChange={(e) => setJobDescription(e.target.value)}
-                        className="w-full h-48 p-3 rounded-lg border border-input bg-background font-mono text-sm resize-y focus:outline-none focus:ring-2 focus:ring-primary/20"
-                        placeholder="Paste the full job description here..."
-                      />
-                    </div>
-                    <button
-                      onClick={handleAnalyzeJob}
-                      disabled={loading || !jobDescription}
-                      className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-2 rounded-md disabled:opacity-50 transition-all text-sm sm:text-base w-full sm:w-auto justify-center"
-                    >
-                      {loading ? (
-                        <RefreshCw className="h-5 w-5 animate-spin" />
-                      ) : (
-                        <Wand2 className="h-5 w-5" />
-                      )}
-                      {loading ? 'Analyzing...' : 'Analyze Job'}
-                    </button>
-                  </>
-                )}
+                 <div className="space-y-4">
+                   {activeTab === 'job' && (
+                     <>
+                       <div>
+                         <label htmlFor="jobDesc" className="block text-sm font-medium mb-2 text-card-foreground/80">
+                           Paste job description
+                         </label>
+                         <textarea
+                           id="jobDesc"
+                           value={jobDescription}
+                           onChange={(e) => setJobDescription(e.target.value)}
+                           className="w-full h-48 p-3 rounded-lg border border-input bg-background font-mono text-sm resize-y focus:outline-none focus:ring-2 focus:ring-primary/20"
+                           placeholder="Paste the full job description here..."
+                         />
+                       </div>
+                       <button
+                         onClick={handleAnalyzeJob}
+                         disabled={loading || !jobDescription}
+                         className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-2 rounded-md disabled:opacity-50 transition-all text-sm sm:text-base w-full sm:w-auto justify-center"
+                       >
+                         {loading ? (
+                             <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                         ) : (
+                            <Wand2 className="h-5 w-5" />
+                         )}
+                         {loading ? 'Analyzing...' : 'Analyze Job'}
+                       </button>
+                     </>
+                   )}
 
-                {activeTab === 'interview' && (
-                  <>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <label htmlFor="position" className="block text-sm font-medium mb-2 text-card-foreground/80">
-                          Position *
-                        </label>
-                        <input
-                          id="position"
-                          type="text"
-                          value={position}
-                          onChange={(e) => setPosition(e.target.value)}
-                          className="w-full p-3 rounded-lg border border-input bg-background focus:outline-none focus:ring-2 focus:ring-primary/20 text-sm sm:text-base"
-                          placeholder="e.g., Senior Software Engineer"
-                          required
-                        />
-                      </div>
-                      <div>
-                        <label htmlFor="company" className="block text-sm font-medium mb-2 text-card-foreground/80">
-                          Company *
-                        </label>
-                        <input
-                          id="company"
-                          type="text"
-                          value={company}
-                          onChange={(e) => setCompany(e.target.value)}
-                          className="w-full p-3 rounded-lg border border-input bg-background focus:outline-none focus:ring-2 focus:ring-primary/20 text-sm sm:text-base"
-                          placeholder="e.g., Acme Corp"
-                          required
-                        />
-                      </div>
-                    </div>
-                    <button
-                      onClick={handleInterviewPrep}
-                      disabled={loading || !position || !company}
-                      className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-2 rounded-md disabled:opacity-50 transition-all text-sm sm:text-base w-full sm:w-auto justify-center"
-                    >
-                      {loading ? (
-                        <RefreshCw className="h-5 w-5 animate-spin" />
-                      ) : (
-                        <Wand2 className="h-5 w-5" />
-                      )}
-                      {loading ? 'Preparing...' : 'Get Interview Prep'}
-                    </button>
-                  </>
-                )}
-
-                {activeTab === 'listing' && (
-                  <>
-                    <div>
-                      <label htmlFor="jobUrl" className="block text-sm font-medium mb-2 text-card-foreground/80">
-                        Job Listing URL
-                      </label>
-                      <input
-                        id="jobUrl"
-                        type="url"
-                        value={jobUrl}
-                        onChange={(e) => setJobUrl(e.target.value)}
-                        className="w-full p-3 rounded-lg border border-input bg-background focus:outline-none focus:ring-2 focus:ring-primary/20 text-sm"
-                        placeholder="https://example.com/job-listing"
-                      />
-                    </div>
-                    <button
-                      onClick={handleAnalyzeJobListing}
-                      disabled={loading || !jobUrl}
-                      className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-2 rounded-md disabled:opacity-50 transition-all text-sm sm:text-base w-full sm:w-auto justify-center"
-                    >
-                      {loading ? (
-                        <RefreshCw className="h-5 w-5 animate-spin" />
-                      ) : (
-                        <Wand2 className="h-5 w-5" />
-                      )}
-                      {loading ? 'Analyzing...' : 'Analyze Listing'}
-                    </button>
-                  </>
-                )}
-              </div>
-            </CardBody>
+                   {activeTab === 'interview' && (
+                     <>
+                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                         <div>
+                           <label htmlFor="position" className="block text-sm font-medium mb-2 text-card-foreground/80">
+                             Position *
+                           </label>
+                           <input
+                             id="position"
+                             type="text"
+                             value={position}
+                             onChange={(e) => setPosition(e.target.value)}
+                             className="w-full p-3 rounded-lg border border-input bg-background focus:outline-none focus:ring-2 focus:ring-primary/20 text-sm sm:text-base"
+                             placeholder="e.g., Senior Software Engineer"
+                             required
+                           />
+                         </div>
+                         <div>
+                           <label htmlFor="company" className="block text-sm font-medium mb-2 text-card-foreground/80">
+                             Company *
+                           </label>
+                           <input
+                             id="company"
+                             type="text"
+                             value={company}
+                             onChange={(e) => setCompany(e.target.value)}
+                             className="w-full p-3 rounded-lg border border-input bg-background focus:outline-none focus:ring-2 focus:ring-primary/20 text-sm sm:text-base"
+                             placeholder="e.g., Acme Corp"
+                             required
+                           />
+                         </div>
+                       </div>
+                       <button
+                         onClick={handleInterviewPrep}
+                         disabled={loading || !position || !company}
+                         className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-2 rounded-md disabled:opacity-50 transition-all text-sm sm:text-base w-full sm:w-auto justify-center"
+                       >
+                          {loading ? (
+                             <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                         ) : (
+                            <Wand2 className="h-5 w-5" />
+                         )}
+                         {loading ? 'Preparing...' : 'Get Interview Prep'}
+                       </button>
+                     </>
+                   )}
+                 </div>
+             </CardBody>
           </Card>
 
           {analyses.length > 0 && (
             <Card className="bg-card/80 backdrop-blur-sm shadow-lg border-border/50">
               <CardHeader className="p-4 cursor-pointer" onClick={() => setShowHistory(!showHistory)}>
-                <div className="flex items-center justify-between w-full">
-                  <div className="flex items-center gap-2">
-                    <h2 className="text-lg font-semibold">Previous Analyses ({activeTab})</h2>
-                  </div>
-                </div>
+                 <div className="flex items-center justify-between w-full">
+                   <div className="flex items-center gap-2">
+                     <Clock className="h-5 w-5" />
+                     <h2 className="text-lg font-semibold">Previous Analyses ({activeTab})</h2>
+                   </div>
+                   {showHistory ? ( <ChevronUp className="h-5 w-5" /> ) : ( <ChevronDown className="h-5 w-5" /> )}
+                 </div>
               </CardHeader>
               {showHistory && (
                 <CardBody className="p-4 pt-0">
@@ -313,12 +268,13 @@ const AITools = () => {
                     {analyses.map((analysis) => (
                       <button
                         key={analysis.id}
-                        onClick={() => setResult(analysis.result)}
+                        onClick={() => loadAnalysis(analysis)}
                         className="w-full p-3 bg-muted rounded-lg text-left hover:bg-muted/80 transition-colors text-sm sm:text-base block"
                         title={`Load analysis from ${format(new Date(analysis.created_at), 'P p')}`}
                       >
                         <div className="flex justify-between items-start gap-4">
                           <p className="font-medium line-clamp-1 flex-grow break-words pr-2">
+                            {analysis.type === 'job' ? 'Job: ' : 'Interview: '}
                             {analysis.input ? analysis.input.split('\n')[0].slice(0, 80) : 'Untitled'}
                             {analysis.input && analysis.input.length > 80 ? '...' : ''}
                           </p>
@@ -340,12 +296,15 @@ const AITools = () => {
                 <h2 className="text-xl font-semibold">Analysis Results</h2>
               </CardHeader>
               <CardBody className="p-6">
-                <div className="prose prose-sm max-w-none dark:prose-invert prose-headings:my-3 prose-p:my-2 prose-ul:my-2 prose-li:my-1 prose-li:before:content-['•'] prose-li:before:text-primary prose-li:before:mr-2 prose-a:text-primary hover:prose-a:underline prose-pre:bg-muted prose-pre:p-3 prose-pre:rounded-md prose-code:font-mono prose-code:text-sm overflow-x-auto">
-                  <ReactMarkdown>{result}</ReactMarkdown>
-                </div>
+                 <div className="prose prose-sm max-w-none dark:prose-invert prose-headings:my-3 prose-p:my-2 prose-ul:my-2 prose-li:my-1 prose-li:before:content-['•'] prose-li:before:text-primary prose-li:before:mr-2 prose-a:text-primary hover:prose-a:underline prose-pre:bg-muted prose-pre:p-3 prose-pre:rounded-md prose-code:font-mono prose-code:text-sm overflow-x-auto">
+                   <ReactMarkdown>
+                     {result}
+                   </ReactMarkdown>
+                 </div>
               </CardBody>
             </Card>
           )}
+
         </div>
       </div>
     </main>
