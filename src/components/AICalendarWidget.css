@@ -1,4 +1,3 @@
-/* Calendar Container */
 .calendar-container .fc { 
   font-size: 0.9rem;
   background-color: hsl(var(--card));
@@ -200,4 +199,21 @@
 /* Ensure HoverCard content appears above FullCalendar */
 [data-radix-hover-card-content] {
     z-index: 50;
+}
+
+/* Mobile-specific styles */
+@media (max-width: 640px) {
+    .fc-event {
+        touch-action: none; /* Prevent default touch actions */
+    }
+    
+    .fc-event-trigger {
+        -webkit-tap-highlight-color: transparent; /* Remove tap highlight on iOS */
+    }
+    
+    /* Make hover card content full width on mobile */
+    [data-radix-hover-card-content] {
+        width: 90vw !important;
+        max-width: none !important;
+    }
 }
