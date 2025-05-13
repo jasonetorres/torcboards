@@ -36,7 +36,28 @@ interface TaskInsertData {
 }
 
 export function VoiceNotesWidget({ onClose }: VoiceNotesWidgetProps) {
-  // ... (keep all state and hooks the same)
+  const { transcript, listening, resetTranscript } = useSpeechRecognition();
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [displayedTranscript, setDisplayedTranscript] = useState('');
+  const [lastProcessed, setLastProcessed] = useState<ProcessedNote | null>(null);
+  const [statusText, setStatusText] = useState('Ready to listen...');
+
+  const mainContentDisplay = lastProcessed ? (
+    // Content display logic here
+    <div>Content</div>
+  ) : displayedTranscript ? (
+    <p className="text-foreground">{displayedTranscript}</p>
+  ) : null;
+
+  const isButtonDisabled = isProcessing;
+  const actionButtonClass = "bg-primary";
+  const actionButtonTitle = "Start Recording";
+  const actionButtonText = "Start Recording";
+  const actionButtonIcon = <Mic className="h-5 w-5" />;
+  
+  const handleActionButtonClick = () => {
+    // Action button click handler logic
+  };
 
   return (
     <div className={cn(
