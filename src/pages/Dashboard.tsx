@@ -198,13 +198,32 @@ const Dashboard = () => {
           {isWidgetMenuOpen && (
              <div className="bg-card/80 backdrop-blur-sm p-4 rounded-lg shadow-lg text-card-foreground">
                 <h2 className="text-lg font-semibold mb-3">Available Widgets</h2>
-                {availableWidgets.length > 0 ? ( <div className="space-y-2 mt-2 max-h-60 overflow-y-auto"> {availableWidgets.map(widget => ( <button key={widget.id} onClick={() => handleToggleWidget(widget.type)} className="w-full text-left p-3 bg-muted hover:bg-primary/10 hover:text-primary rounded-md transition-colors flex items-center justify-between text-sm group" > <span className="capitalize"> {widget.type.replace(/([A-Z])/g, ' $1').toLowerCase()} </span> <Plus className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" /> </button> ))} </div> ) : ( <p className="text-sm text-muted-foreground mt-2"> All available widgets are already displayed. </p> )}
+                {availableWidgets.length > 0 ? (
+                  <div className="space-y-2 mt-2 max-h-60 overflow-y-auto">
+                    {availableWidgets.map(widget => (
+                      <button
+                        key={widget.id}
+                        onClick={() => handleToggleWidget(widget.type)}
+                        className="w-full text-left p-3 bg-muted hover:bg-primary/10 hover:text-primary rounded-md transition-colors flex items-center justify-between text-sm group"
+                      >
+                        <span className="capitalize">
+                          {widget.type.replace(/([A-Z])/g, ' $1').toLowerCase()}
+                        </span>
+                        <Plus className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground mt-2">
+                    All available widgets are already displayed.
+                  </p>
+                )}
                 <button onClick={() => setIsWidgetMenuOpen(false)} className="mt-4 text-primary hover:underline text-sm">Close Menu</button>
              </div>
           )}
 
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-            <SortableContext items={enabledWidgets.map((w) => w.id)} strategy={verticalListSortingStrategy} >
+            <SortableContext items={enabledWidgets.map((w) => w.id)} strategy={verticalListSortingStrategy}>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 auto-rows-min">
                 {enabledWidgets.map((widget) => (
                   widgetComponents[widget.type] ? (
