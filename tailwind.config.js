@@ -64,7 +64,7 @@ export default {
       },
       backgroundImage: {
         'gradient-dark': 'linear-gradient(to bottom right, hsl(225 25% 10%), hsl(252 25% 8%))',
-        'gradient-card': 'linear-gradient(to bottom right, hsl(225 25% 12%), hsl(252 25% 10%))',
+        'gradient-card': 'linear-gradient(to bottom right, hsl(225 25% 15%), hsl(252 25% 13%))',
         'gradient-primary': 'linear-gradient(to right, hsl(252 100% 69%), hsl(262 100% 69%))',
       }
     }
