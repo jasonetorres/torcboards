@@ -40,10 +40,9 @@ export default function AICalendarWidget({ applications, companies }: AICalendar
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    // Delay mounting state to ensure DOM is ready
     const timer = setTimeout(() => {
       setMounted(true);
-    }, 250); // Increased delay to ensure calendar is fully rendered
+    }, 250);
     
     return () => {
       clearTimeout(timer);
@@ -147,7 +146,6 @@ export default function AICalendarWidget({ applications, companies }: AICalendar
     const { event } = eventInfo;
     const { description, eventType, completed, originalId, related_application_id, related_task_id } = event.extendedProps;
 
-    // Basic content for when component is not mounted
     if (!mounted) {
       return (
         <div className="fc-event-title-container truncate w-full h-full flex items-center p-0.5">
@@ -157,7 +155,6 @@ export default function AICalendarWidget({ applications, companies }: AICalendar
       );
     }
 
-    // Enhanced content with HoverCard when mounted
     return (
       <div className="fc-event-title-container truncate w-full h-full">
         {mounted && (
@@ -289,8 +286,6 @@ export default function AICalendarWidget({ applications, companies }: AICalendar
               eventClick={handleEventClick}
               headerToolbar={{ left: 'prev,next today', center: 'title', right: '' }}
               height="auto"
-              dayMaxEvents={2}
-              moreLinkClassNames={"text-xs text-primary hover:underline p-0.5"}
               displayEventTime={false}
               weekends={true}
               viewClassNames={"text-xs"}
