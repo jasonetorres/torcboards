@@ -37,6 +37,12 @@ export default function AICalendarWidget({ applications, companies }: AICalendar
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState({ schedule: false, reminders: false, events: true });
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+    return () => setMounted(false);
+  }, []);
 
   const fetchCalendarEvents = useCallback(async () => {
     setLoading(prev => ({ ...prev, events: true }));
@@ -133,6 +139,15 @@ export default function AICalendarWidget({ applications, companies }: AICalendar
   const renderEventContent = (eventInfo: EventContentArg) => {
     const { event } = eventInfo;
     const { description, eventType, completed, originalId, related_application_id, related_task_id } = event.extendedProps;
+
+    if (!mounted) {
+      return (
+        <div className="fc-event-title-container truncate w-full h-full flex items-center p-0.5">
+          <span className={cn("fc-event-dot mr-1 flex-shrink-0", completed ? "bg-green-500" : "bg-primary" )}></span>
+          <span className="fc-event-main-title flex-grow truncate text-xs">{event.title}</span>
+        </div>
+      );
+    }
 
     return (
       <HoverCard openDelay={200} closeDelay={100}>
