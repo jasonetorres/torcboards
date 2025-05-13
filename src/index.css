@@ -7,19 +7,19 @@
     --background: 225 25% 10%;
     --foreground: 210 40% 98%;
     
-    --card: 225 25% 35%;
+    --card: 220 15% 20%;
     --card-foreground: 210 40% 98%;
     
-    --popover: 225 25% 35%;
+    --popover: 220 15% 20%;
     --popover-foreground: 210 40% 98%;
     
     --primary: 217 100% 50%;
     --primary-foreground: 210 40% 98%;
     
-    --secondary: 217 32% 17%;
+    --secondary: 220 15% 25%;
     --secondary-foreground: 210 40% 98%;
     
-    --muted: 217 32% 17%;
+    --muted: 220 15% 25%;
     --muted-foreground: 215 20.2% 85.1%;
     
     --accent: 217 100% 50%;
@@ -28,8 +28,8 @@
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 210 40% 98%;
     
-    --border: 217 32% 17%;
-    --input: 217 32% 17%;
+    --border: 220 15% 25%;
+    --input: 220 15% 25%;
     --ring: 217 100% 50%;
     
     --radius: 0.75rem;
@@ -73,11 +73,11 @@
 
 /* Custom background gradients */
 .bg-gradient-dark {
-  background: linear-gradient(to bottom right, hsl(225 25% 10%), hsl(252 25% 8%));
+  background: linear-gradient(to bottom right, hsl(220 15% 10%), hsl(220 15% 8%));
 }
 
 .bg-gradient-card {
-  background: linear-gradient(to bottom right, hsl(225 25% 35%), hsl(252 25% 33%));
+  background: linear-gradient(to bottom right, hsl(220 15% 20%), hsl(220 15% 18%));
 }
 
 .bg-gradient-primary {
