@@ -314,16 +314,6 @@ export default function AICalendarWidget({ applications, companies }: AICalendar
             />
           </div>
         )}
-        <div className="mt-2 flex gap-4 text-xs px-1 text-muted-foreground">
-          <div className="flex items-center gap-1.5">
-            <span className="fc-event-dot bg-primary"></span>
-            <span>Pending</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span className="fc-event-dot bg-green-500"></span>
-            <span>Completed</span>
-          </div>
-        </div>
       </div>
     </div>
   );
