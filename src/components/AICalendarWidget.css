@@ -61,7 +61,7 @@
   margin-bottom: 2px;
   padding: 2px;
   border-radius: 4px;
-  font-size: 0.75rem;
+  font-size: 0.875rem;
   overflow: hidden;
   max-width: 100%;
   white-space: normal !important;
@@ -96,13 +96,13 @@
     overflow: hidden;
     word-break: break-word;
     flex-grow: 1;
-    font-size: 0.75rem;
+    font-size: 0.875rem;
     line-height: 1.2;
 }
 
 .fc-event-dot {
-    width: 5px;
-    height: 5px;
+    width: 6px;
+    height: 6px;
     border-radius: 50%;
     flex-shrink: 0;
     margin-top: 3px;
@@ -132,11 +132,28 @@
 /* Mobile-specific styles */
 @media (max-width: 640px) {
     .fc-event {
-        touch-action: none; /* Prevent default touch actions */
+        touch-action: none;
+        font-size: 1rem;
     }
     
     .fc-event-trigger {
-        -webkit-tap-highlight-color: transparent; /* Remove tap highlight on iOS */
+        -webkit-tap-highlight-color: transparent;
+    }
+
+    .fc-event-main-title {
+        font-size: 1rem;
+    }
+    
+    .fc-toolbar-title {
+        font-size: 1.25rem !important;
+    }
+    
+    .fc-col-header-cell-cushion {
+        font-size: 1rem;
+    }
+    
+    .fc-daygrid-day-number {
+        font-size: 1rem;
     }
     
     /* Make hover card content full width on mobile */
