@@ -1,10 +1,11 @@
+// store/dashboardSlice.ts
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { supabase } from '../lib/supabase';
 
 // --- Types and Initial State ---
 export type WidgetType = 'quote'| 'applications' | 'companies' | 'followUps' | 'pomodoro' | 'aiCalendar'| 'tasks' | 'resume';
 
-interface Widget {
+export interface Widget { // Ensure this is exported
   id: string;
   type: WidgetType;
   enabled: boolean;
@@ -17,8 +18,9 @@ interface Widget {
 
 interface DashboardState {
   widgets: Widget[];
-  loading: boolean;
+  loading: boolean; // This 'loading' is specifically for fetch/save layout operations
   error: string | null;
+  layoutStatus: 'idle' | 'loading' | 'succeeded' | 'failed'; // <-- NEW STATE for layout readiness
 }
 
 const defaultWidgets: Widget[] = [
@@ -33,41 +35,56 @@ const defaultWidgets: Widget[] = [
 ];
 
 const initialState: DashboardState = {
-  widgets: defaultWidgets,
+  widgets: [], // Start with empty or keep default, but layoutStatus will gate rendering
   loading: false,
-  error: null
+  error: null,
+  layoutStatus: 'idle', // <-- INITIALIZE NEW STATE
 };
 
 // --- Async Thunks ---
-export const fetchDashboardLayout = createAsyncThunk(
+export const fetchDashboardLayout = createAsyncThunk<
+  Widget[],
+  string
+>(
   'dashboard/fetchLayout',
-  async (userId: string) => {
-    const { data, error } = await supabase
-      .from('dashboard_layouts')
-      .select('widgets')
-      .eq('user_id', userId)
-      .maybeSingle();
+  async (userId: string, { rejectWithValue }) => {
+    try {
+      const { data, error } = await supabase
+        .from('dashboard_layouts')
+        .select('widgets')
+        .eq('user_id', userId)
+        .maybeSingle();
 
-    if (error) throw error;
-    return data?.widgets as Widget[] || defaultWidgets;
+      if (error) throw error;
+      return data?.widgets as Widget[] || defaultWidgets; // Return default if no saved layout
+    } catch (err: any) {
+        return rejectWithValue(err.message || 'Failed to fetch layout');
+    }
   }
 );
 
-export const saveDashboardLayout = createAsyncThunk(
+export const saveDashboardLayout = createAsyncThunk<
+  Widget[],
+  { userId: string; widgets: Widget[] }
+>(
   'dashboard/saveLayout',
-  async ({ userId, widgets }: { userId: string; widgets: Widget[] }) => {
-    const { error } = await supabase
-      .from('dashboard_layouts')
-      .upsert({ 
-        user_id: userId,
-        widgets,
-        updated_at: new Date().toISOString()
-      }, {
-        onConflict: 'user_id'
-      });
+  async ({ userId, widgets }, { rejectWithValue }) => {
+    try {
+        const { error } = await supabase
+        .from('dashboard_layouts')
+        .upsert({
+            user_id: userId,
+            widgets,
+            updated_at: new Date().toISOString()
+        }, {
+            onConflict: 'user_id'
+        });
 
-    if (error) throw error;
-    return widgets;
+        if (error) throw error;
+        return widgets;
+    } catch (err: any) {
+        return rejectWithValue(err.message || 'Failed to save layout');
+    }
   }
 );
 
@@ -95,44 +112,53 @@ export const dashboardSlice = createSlice({
         widget.size = action.payload.size || { cols: 1, rows: 1 };
       }
     },
-    initializeWidgets: (state) => {
+    initializeWidgets: (state) => { // This is used on logout
       state.widgets = defaultWidgets;
       state.loading = false;
       state.error = null;
+      state.layoutStatus = 'succeeded'; // Considered initialized
     },
-    resetStore: (state) => {
-      state.widgets = defaultWidgets;
+    resetStore: (state) => { // If this is a more general reset
+      state.widgets = defaultWidgets; // Or [] if you prefer fetching default explicitely
       state.loading = false;
       state.error = null;
+      state.layoutStatus = 'idle'; // Set to idle to trigger fetch on next load if needed
     },
   },
   extraReducers: (builder) => {
     builder
       .addCase(fetchDashboardLayout.pending, (state) => {
-        state.loading = true;
+        state.loading = true; // For save/fetch operations
+        state.layoutStatus = 'loading'; // <-- SET LAYOUT STATUS
         state.error = null;
       })
-      .addCase(fetchDashboardLayout.fulfilled, (state, action) => {
+      .addCase(fetchDashboardLayout.fulfilled, (state, action: PayloadAction<Widget[]>) => {
         state.widgets = action.payload;
         state.loading = false;
+        state.layoutStatus = 'succeeded'; // <-- SET LAYOUT STATUS
         state.error = null;
       })
       .addCase(fetchDashboardLayout.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.error.message || 'Failed to fetch dashboard layout';
+        state.layoutStatus = 'failed'; // <-- SET LAYOUT STATUS
+        state.error = action.payload as string || action.error.message || 'Failed to fetch dashboard layout';
+        state.widgets = defaultWidgets; // Fallback to default on error
       })
       .addCase(saveDashboardLayout.pending, (state) => {
-        state.loading = true;
+        state.loading = true; // This loading is for the save operation
         state.error = null;
       })
-      .addCase(saveDashboardLayout.fulfilled, (state, action) => {
+      .addCase(saveDashboardLayout.fulfilled, (state, action: PayloadAction<Widget[]>) => {
         state.widgets = action.payload;
         state.loading = false;
         state.error = null;
+        // Assuming layout is fine after a successful save
+        if (state.layoutStatus !== 'succeeded') state.layoutStatus = 'succeeded';
       })
       .addCase(saveDashboardLayout.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.error.message || 'Failed to save dashboard layout';
+        state.error = action.payload as string || action.error.message || 'Failed to save dashboard layout';
+        // Don't change layoutStatus on save error, keep existing UI
       });
   },
 });
