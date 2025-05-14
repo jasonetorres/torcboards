@@ -3,17 +3,14 @@ import { supabase } from './supabase'; // Assuming supabase is configured elsewh
 import { format, addDays, startOfWeek } from 'date-fns'; // Ensure all needed date-fns are imported
 
 // --- Type Definitions ---
-
-// For existing functions - keeping them as is
 interface AIEventData {
     title: string;
     description?: string;
-    date: string; // Expect 'YYYY-MM-DD'
-    type: string; // e.g., 'follow_up', 'research', 'schedule_suggestion', 'application_deadline'
+    date: string;
+    type: string;
     related_application_id?: string | null;
     related_task_id?: string | null;
 }
-
 interface CalendarEventInsertData {
     user_id: string;
     id?: string;
@@ -25,13 +22,11 @@ interface CalendarEventInsertData {
     related_application_id?: string | null;
     related_task_id?: string | null;
 }
-
 interface CalendarEventRow extends CalendarEventInsertData {
     id: string;
     created_at: string;
     updated_at: string;
 }
-
 interface TaskInsertData {
     user_id: string;
     title: string;
@@ -43,29 +38,20 @@ interface TaskInsertData {
     related_calendar_event_id?: string | null;
     related_application_id?: string | null;
 }
-
-// **New Type Definition for analyzeResume**
 export interface EnhancedAnalysisResult {
-  suggestionsMarkdown: string;      // For detailed suggestions, section by section
-  correctedResumeMarkdown?: string; // The AI's full rewritten/corrected resume content
-                                    // Make it optional in case AI fails to provide it or for error states
+  suggestionsMarkdown: string;
+  correctedResumeMarkdown?: string;
 }
-
 
 // --- OpenAI Client Initialization ---
 let openai: OpenAI | null = null;
 let isConfigured = false;
 
-// IMPORTANT SECURITY NOTE: Exposing OpenAI API keys directly in client-side code
-// (implied by `dangerouslyAllowBrowser: true` and VITE_ prefix) is highly risky.
-// This key can be stolen and misused. For production, always make OpenAI API calls
-// from a backend server or a secure serverless function (like Supabase Edge Functions)
-// where the API key is kept secret.
 if (import.meta.env.VITE_OPENAI_API_KEY) {
   try {
       openai = new OpenAI({
         apiKey: import.meta.env.VITE_OPENAI_API_KEY,
-        dangerouslyAllowBrowser: true, // Acknowledge the risk if this is unavoidable in your current setup
+        dangerouslyAllowBrowser: true,
       });
       isConfigured = true;
   } catch (error) { console.error("Failed to initialize OpenAI client:", error); }
@@ -73,28 +59,102 @@ if (import.meta.env.VITE_OPENAI_API_KEY) {
 
 const isOpenAIConfigured = () => isConfigured && openai !== null;
 
+// --- Resume Template Content (Revised for resumeview.tsx parser compatibility) ---
+const RESUME_TEMPLATE_MARKDOWN_FOR_PARSER = `
+JOHN DOE
+Senior Software Engineer
+john.doe@example.com | (555) 123-4567 | linkedin.com/in/johndoe | github.com/johndoe | portfolio.johndoe.com
 
-// --- analyzeResume (Corrected and Enhanced) ---
+---
+
+### PERSONAL SUMMARY
+Highly motivated and results-oriented Senior Software Engineer with 8+ years of experience in developing and implementing scalable software solutions. Proven ability to lead projects, mentor junior developers, and collaborate effectively in fast-paced Agile environments. Seeking to leverage expertise in full-stack development to contribute to a dynamic organization. *(This section will be parsed as a single block of text for the summary.)*
+
+---
+
+### TECHNICAL SKILLS
+- JavaScript (Expert)
+- TypeScript (Advanced)
+- React (Proficient)
+- Node.js (Proficient)
+- Python
+- SQL (PostgreSQL, MySQL)
+- AWS (EC2, S3, Lambda)
+- Docker
+- Kubernetes
+- Git
+*(Skills should be listed one per line, starting with '-' or '*', with optional proficiency in parentheses. This structure is for the 'TECHNICAL SKILLS' section in resumeview.tsx).*
+
+---
+
+### EXPERIENCE
+- **Senior Software Engineer** at Tech Solutions Inc. | San Francisco, CA | Jan 2020 – Present
+  - Led a team of 5 engineers in the development of a new flagship product, resulting in a 30% market share increase within the first year.
+  - Designed and implemented microservices architecture using Node.js and Docker, improving system scalability and reducing downtime by 15%.
+  - Tech Stack: JavaScript, TypeScript, React, Node.js, Python, AWS, Docker, Kubernetes.
+  - Mentored junior engineers, fostering a culture of continuous learning and development.
+
+- **Software Engineer** at Innovatech Ltd. | Boston, MA | Jun 2017 – Dec 2019
+  - Developed and maintained features for a high-traffic e-commerce platform using React and Python (Django).
+  - Contributed to a 20% improvement in application performance by optimizing database queries and refactoring legacy code.
+  - Collaborated with cross-functional teams to deliver projects on time and within budget.
+
+*(Each experience item MUST start with '- **Job Title** at Company Name | Location (optional) | Start Date – End Date (or Present)'. The 'at Company Name' part is important for the parser if company name is not part of the bolded title. Subsequent lines are descriptions/bullet points. 'Tech Stack:' lines will be part of the description.)*
+
+---
+
+### TECHNICAL PROJECTS
+- **Personal Portfolio Website** | Self-driven | Jan 2023 – Present
+  - Developed a responsive personal portfolio website using Next.js and Tailwind CSS to showcase projects and skills.
+  - Integrated with Contentful CMS for easy content management.
+  - Deployed on Vercel. View at: https://yourportfolio.example.com
+
+- **E-commerce Recommendation Engine** | University Capstone | Sep 2016 – May 2017
+  - Built a collaborative filtering recommendation engine using Python and Scikit-learn.
+  - Achieved 85% accuracy in predicting user preferences on a dataset of 100,000 interactions.
+
+*(Project items should follow a similar format: '- **Project Name** | Optional Context (e.g., 'Self-driven', 'University Capstone') | Start Date – End Date (or Present)'. Subsequent lines are descriptions.)*
+
+---
+
+### EDUCATION
+- **Master of Science in Computer Science** | Stanford University | Stanford, CA | Aug 2015 – May 2017
+  - Specialization in Artificial Intelligence.
+  - Thesis: "Advanced Algorithms for Natural Language Processing."
+
+- **Bachelor of Science in Software Engineering** | Massachusetts Institute of Technology (MIT) | Cambridge, MA | Sep 2011 – May 2015
+  - Graduated Magna Cum Laude.
+  - Relevant coursework: Data Structures, Algorithms, Database Management.
+
+*(Education items MUST start with '- **Degree Name (or Institution if degree is on next line)** | Optional Location | Start Date – End Date (or Present)'. If degree is not on the first line, the next line should contain 'Degree in Field of Study' or just the 'Degree' for the parser to pick it up correctly.)*
+`;
+
+// --- analyzeResume (MODIFIED to use the new template string) ---
 export async function analyzeResume(
   resumeText: string,
-  targetRole?: string // Optional target role for more specific feedback
+  targetRole?: string
 ): Promise<EnhancedAnalysisResult> {
   if (!isOpenAIConfigured() || !openai) {
     return {
       suggestionsMarkdown: "OpenAI API key not configured or client failed to initialize. Resume analysis unavailable.",
-      // No correctedResumeMarkdown in this case
     };
   }
 
   const systemPrompt = `You are an expert resume reviewer and career coach.
 Your task is to analyze the provided resume content for the specified target role.
 You must return your feedback as a VALID JSON object with two main keys:
-1.  "suggestionsMarkdown": Provide detailed, actionable suggestions to improve the resume. This should be formatted as Markdown. Analyze section by section (e.g., Summary, Experience, Education, Skills). Focus on clarity, impact, action verbs, quantifiable achievements, and ATS optimization. If the resume is strong in certain areas, acknowledge that.
-2.  "correctedResumeMarkdown": Provide a complete, rewritten version of the entire resume content, also formatted as Markdown. This version should incorporate your best practice suggestions and be tailored for the target role. If no target role is provided, give general improvements.
+1.  "suggestionsMarkdown": Provide detailed, actionable suggestions to improve the resume. This should be formatted as Markdown. Analyze section by section. Focus on clarity, impact, action verbs, quantifiable achievements, and ATS optimization.
+2.  "correctedResumeMarkdown": Provide a complete, rewritten version of the entire resume content, also formatted as Markdown. **This rewritten resume MUST strictly adhere to the specific Markdown structure, section headings (e.g., '### PERSONAL SUMMARY', '### EXPERIENCE'), item formatting (e.g., '- **Title** at Company | Location | Dates'), and all guidelines provided in the "RESUME MARKDOWN TEMPLATE FOR PARSER" section below. This is critical for the resume to be parsed correctly by our system.**
 
-Ensure the output is a single JSON object.`;
+Ensure the output is a single JSON object.
 
-  const userPrompt = `Target Role: ${targetRole || 'Not specified (provide general improvements)'}
+RESUME MARKDOWN TEMPLATE FOR PARSER:
+---
+${RESUME_TEMPLATE_MARKDOWN_FOR_PARSER}
+---
+`;
+
+  const userPrompt = `Target Role: ${targetRole || 'Not specified (provide general improvements adhering to the parser template)'}
 
 Resume Content to Analyze:
 ---
@@ -103,29 +163,24 @@ ${resumeText}
 
   try {
     const response = await openai.chat.completions.create({
-      model: "gpt-4-turbo", // Or "gpt-3.5-turbo-0125" or later for JSON mode support
-      response_format: { type: "json_object" }, // Essential for getting structured JSON output
+      model: "gpt-4-turbo",
+      response_format: { type: "json_object" },
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt }
       ],
-      temperature: 0.5, // Adjust for creativity vs. precision
-      // max_tokens can be adjusted based on typical resume length + analysis
+      temperature: 0.2, // Further lowered temperature for very strict adherence
     });
 
     if (response.choices[0]?.message?.content) {
       try {
-        // Attempt to parse the JSON content
         const parsedResult = JSON.parse(response.choices[0].message.content) as EnhancedAnalysisResult;
-
-        // Basic validation of the parsed structure
         if (typeof parsedResult.suggestionsMarkdown === 'string') {
           return {
             suggestionsMarkdown: parsedResult.suggestionsMarkdown,
             correctedResumeMarkdown: typeof parsedResult.correctedResumeMarkdown === 'string' ? parsedResult.correctedResumeMarkdown : undefined,
           };
         } else {
-          // If the structure is not as expected, return an error within the defined structure
           console.error("AI response JSON did not match expected structure:", parsedResult);
           return {
             suggestionsMarkdown: "Error: AI analysis returned an unexpected data structure. The raw response was: \n\n" + response.choices[0].message.content,
@@ -135,7 +190,6 @@ ${resumeText}
         console.error("Error parsing AI JSON response for resume analysis:", parseError, "\nRaw AI Response:", response.choices[0].message.content);
         return {
           suggestionsMarkdown: `Error: Could not parse the AI's response. The AI might have returned invalid JSON. The raw response started with: \n\n${response.choices[0].message.content.substring(0, 300)}...`,
-          // No correctedResumeMarkdown on parse error
         };
       }
     } else {
@@ -156,12 +210,10 @@ ${resumeText}
   }
 }
 
-
 // --- Helper function to map CalendarEventRow to TaskInsertData (Kept as is) ---
 function mapCalendarEventToTaskData(event: CalendarEventRow, userId: string): TaskInsertData {
     const taskStatus: TaskInsertData['status'] = event.completed ? 'completed' : 'pending';
     let taskSource = 'ai_generated';
-
     if (event.event_type) {
         if (event.event_type.includes('schedule')) {
             taskSource = 'ai_schedule';
@@ -171,7 +223,6 @@ function mapCalendarEventToTaskData(event: CalendarEventRow, userId: string): Ta
             taskSource = `ai_${event.event_type}`;
         }
     }
-
     return {
         user_id: userId,
         title: event.title,
@@ -191,18 +242,15 @@ export async function generateSmartReminders(date: Date, applications: any[], co
   const { data: authData } = await supabase.auth.getUser();
   if (!authData.user) { console.error("User not logged in for smart reminders."); return; }
   const userId = authData.user.id;
-
   try {
     const formattedDate = format(date, 'yyyy-MM-dd');
     const appContext = applications.slice(0, 5).map(app => ({ id: app.id, position: app.position, next_follow_up: app.next_follow_up, company_name: app.companies?.name }));
     const companyContext = companies.slice(0, 5).map(c => ({ id: c.id, name: c.name }));
-
     const response = await openai.chat.completions.create({
         model: "gpt-4-turbo", response_format: { type: "json_object" },
         messages: [ { role: "system", content: `You are an AI assistant specializing in job search optimization. Create 2-3 clear, actionable calendar event reminders for the user ONLY for the date ${formattedDate}. Base reminders on their recent activity: Applications (context provided): Consider upcoming follow-ups or application deadlines. If a reminder relates directly to ONE application, include its 'application_id'. Target Companies (context provided): Suggest research or networking actions related to these. General Tasks: Suggest tasks like 'Prepare for interviews' or 'Update resume'. Output MUST be a valid JSON object containing a single key "tasks", which is an array of event objects. Each event object MUST have: "title" (string, concise, no company names), "date" (string, MUST be "${formattedDate}"), "type" (string, e.g., 'follow_up', 'research', 'preparation', 'networking'), and "description" (string, brief action). Optionally include: "related_application_id" (string, if directly related to one application from context) or "related_task_id" (string, if related to an existing task - context not provided here, so likely null). Example event object: {"title": "Follow up on [Position Type] application", "date": "${formattedDate}", "type": "follow_up", "description": "Send polite follow-up email.", "related_application_id": "uuid-goes-here-or-null"} DO NOT generate tasks for dates other than ${formattedDate}. Ensure the "tasks" array is inside a parent JSON object.` }, { role: "user", content: `Generate JSON tasks for ${formattedDate}. Context: Applications: ${JSON.stringify(appContext)} Target Companies: ${JSON.stringify(companyContext)}` } ],
         temperature: 0.6, max_tokens: 600,
     });
-
     let aiEventDataArray: AIEventData[] = [];
     try {
       if (response.choices[0]?.message?.content) {
@@ -212,7 +260,6 @@ export async function generateSmartReminders(date: Date, applications: any[], co
         } else { console.warn("AI response 'tasks' field is not a valid array:", parsedResponse); }
       }
     } catch (parseError) { console.error("Error parsing AI JSON for reminders:", parseError, response.choices[0]?.message?.content); return; }
-
     const calendarEventsToSave: CalendarEventInsertData[] = aiEventDataArray
      .filter(task => task.date === formattedDate && task.title)
      .map(task => ({
@@ -220,24 +267,20 @@ export async function generateSmartReminders(date: Date, applications: any[], co
         event_date: task.date, event_type: task.type || 'ai_generated', completed: false,
         related_application_id: task.related_application_id || null, related_task_id: task.related_task_id || null,
      }));
-
     if (calendarEventsToSave.length > 0) {
       const { data: upsertedCalendarEvents, error: upsertError } = await supabase
         .from('calendar_events')
         .upsert(calendarEventsToSave, { onConflict: 'user_id,title,event_date' })
         .select();
-
       if (upsertError) { console.error("Error upserting AI reminders into calendar_events:", upsertError); }
       else if (upsertedCalendarEvents) {
-        console.log(`Successfully upserted ${upsertedCalendarEvents.length} AI reminders into calendar.`);
         const tasksToSave = upsertedCalendarEvents.map(calEvent => mapCalendarEventToTaskData(calEvent as CalendarEventRow, userId));
         if (tasksToSave.length > 0) {
           const { error: taskUpsertError } = await supabase.from('tasks').upsert(tasksToSave, { onConflict: 'user_id, related_calendar_event_id' });
           if (taskUpsertError) { console.error("Error upserting corresponding tasks:", taskUpsertError); }
-          else { console.log(`Successfully upserted ${tasksToSave.length} corresponding tasks.`); }
         }
       }
-    } else { console.log("AI generated no valid tasks for the specified date."); }
+    }
   } catch (error: any) { console.error('Error in generateSmartReminders:', error); if (error instanceof OpenAI.APIError) { console.error(`OpenAI API Error: ${error.status} ${error.name} ${error.message}`); } }
 }
 
@@ -247,7 +290,6 @@ export async function generateJobHuntingSchedule(applications: any[], companies:
     const { data: authData } = await supabase.auth.getUser();
     if (!authData.user) { console.error("User not logged in for schedule generation."); return; }
     const userId = authData.user.id;
-
     try {
         const today = new Date();
         const startOfThisWeek = startOfWeek(today, { weekStartsOn: 1 });
@@ -255,13 +297,11 @@ export async function generateJobHuntingSchedule(applications: any[], companies:
         const dateRangeStr = `${scheduleDates[0]} to ${scheduleDates[scheduleDates.length - 1]}`;
         const appContext = applications.slice(0, 10).map(app => ({ id: app.id, position: app.position, next_follow_up: app.next_follow_up, company_name: app.companies?.name }));
         const companyContext = companies.slice(0, 10).map(c => ({ id: c.id, name: c.name }));
-
         const response = await openai.chat.completions.create({
             model: "gpt-4-turbo", response_format: { type: "json_object" },
             messages: [ { role: "system", content: `You are an expert career coach. Create a structured job hunting schedule for the upcoming week (${dateRangeStr}) based on user context. Generate a JSON object containing a single key "schedule_items", which is an array of event objects. Each event object MUST have: "title" (string, specific action), "date" (string, 'YYYY-MM-DD' format, MUST be within ${dateRangeStr}), "type" (string, e.g., 'job_search', 'application', 'networking', 'preparation', 'follow_up'), and "description" (string, optional brief detail). Optionally include "related_application_id" (string) if an action pertains to ONE specific application from the context. Aim for a balanced schedule across the week (e.g., 1-3 meaningful tasks per day). Prioritize based on upcoming follow-ups. Example item: {"title": "Search for new Data Analyst roles", "date": "${scheduleDates[0]}", "type": "job_search", "description": "Spend 1 hour on LinkedIn/Indeed."} Example item: {"title": "Follow up on Senior Dev application", "date": "${scheduleDates[2]}", "type": "follow_up", "description": "Check status via email.", "related_application_id": "uuid-goes-here-or-null"} Ensure output is valid JSON. The "schedule_items" array should be inside a parent JSON object.` }, { role: "user", content: `Generate JSON schedule items for the week ${dateRangeStr}. Context: Applications: ${JSON.stringify(appContext)} Target Companies: ${JSON.stringify(companyContext)}` } ],
             temperature: 0.7, max_tokens: 1000,
         });
-
         let aiScheduleItems: AIEventData[] = [];
         try {
             if (response.choices[0]?.message?.content) {
@@ -270,7 +310,6 @@ export async function generateJobHuntingSchedule(applications: any[], companies:
                 else { console.warn("AI response 'schedule_items' field is not a valid array:", parsedResponse); }
             }
         } catch (parseError) { console.error("Error parsing AI JSON for schedule:", parseError, response.choices[0]?.message?.content); return; }
-
         const calendarEventsToSave: CalendarEventInsertData[] = aiScheduleItems
             .filter(item => item.title && scheduleDates.includes(item.date))
             .map(item => ({
@@ -278,27 +317,22 @@ export async function generateJobHuntingSchedule(applications: any[], companies:
                 event_type: item.type || 'schedule_suggestion', completed: false,
                 related_application_id: item.related_application_id || null, related_task_id: null,
             }));
-
         if (calendarEventsToSave.length > 0) {
             const { data: upsertedCalendarEvents, error: upsertError } = await supabase
                 .from('calendar_events')
                 .upsert(calendarEventsToSave, { onConflict: 'user_id,title,event_date' })
                 .select();
-
             if (upsertError) { console.error("Error upserting AI schedule into calendar_events:", upsertError); }
             else if (upsertedCalendarEvents) {
-                console.log(`Successfully upserted ${upsertedCalendarEvents.length} AI schedule items into calendar.`);
                 const tasksToSave = upsertedCalendarEvents.map(calEvent => mapCalendarEventToTaskData(calEvent as CalendarEventRow, userId));
                 if (tasksToSave.length > 0) {
                   const { error: taskUpsertError } = await supabase.from('tasks').upsert(tasksToSave, { onConflict: 'user_id, related_calendar_event_id' });
                   if (taskUpsertError) { console.error("Error upserting corresponding tasks from schedule:", taskUpsertError); }
-                  else { console.log(`Successfully upserted ${tasksToSave.length} corresponding tasks from schedule.`); }
                 }
             }
-        } else { console.log("AI generated no valid schedule items for the specified week."); }
+        }
     } catch (error: any) { console.error('Error in generateJobHuntingSchedule:', error); if (error instanceof OpenAI.APIError) { console.error(`OpenAI API Error: ${error.status} ${error.name} ${error.message}`); } }
 }
-
 
 // --- Other AI functions (Kept as is) ---
 export async function suggestNetworkingActions(applications: any[], companies: any[]): Promise<string | null> {
@@ -324,7 +358,6 @@ export async function suggestNetworkingActions(applications: any[], companies: a
     return "An unexpected error occurred while generating networking suggestions. Please try again later.";
   }
 }
-
 export async function generateWelcomeEmail(firstName: string): Promise<string | null> {
   if (!isOpenAIConfigured() || !openai) {
     console.warn("OpenAI not configured. Cannot generate welcome email.");
@@ -341,7 +374,6 @@ export async function generateWelcomeEmail(firstName: string): Promise<string | 
     return `Welcome ${firstName}! There was an issue generating a personalized message. You can start tracking your job applications, manage tasks, and use the AI tools to help your search.`;
   }
 }
-
 export async function generateWeeklyRecapEmail(stats: any, firstName: string): Promise<string | null> {
   if (!isOpenAIConfigured() || !openai) {
     console.warn("OpenAI not configured. Cannot generate weekly recap.");
@@ -358,8 +390,6 @@ export async function generateWeeklyRecapEmail(stats: any, firstName: string): P
     return "Error generating weekly recap email.";
    }
 }
-
-
 export async function analyzeJobDescription(jobDescription: string): Promise<string> {
   if (!isOpenAIConfigured() || !openai) return "OpenAI API key not configured. Job description analysis unavailable.";
   try {
@@ -374,7 +404,6 @@ export async function analyzeJobDescription(jobDescription: string): Promise<str
     return "An unexpected error occurred while analyzing the job description.";
   }
 }
-
 export async function getInterviewPrep(position: string, company: string): Promise<string> {
   if (!isOpenAIConfigured() || !openai) return "OpenAI API key not configured. Interview prep unavailable.";
    try {
