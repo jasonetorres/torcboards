@@ -201,8 +201,6 @@ export const authSlice = createSlice({
       .addCase(signIn.fulfilled, (state, action: PayloadAction<{ user: AppUser | null, session: Session | null }>) => {
         state.loading = false;
         state.user = action.payload.user;
-        // ***** ENSURED THIS DEBUG LOG IS PRESENT *****
-        console.log('[authSlice] signIn.fulfilled: User state in Redux has been set to:', JSON.stringify(state.user, null, 2));
         state.session = action.payload.session;
         state.requiresConfirmation = false;
       })

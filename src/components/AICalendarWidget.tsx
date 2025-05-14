@@ -7,8 +7,8 @@ import { Link } from 'react-router-dom';
 import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import interactionPlugin, { DateClickArg } from '@fullcalendar/interaction';
-import { EventContentArg, EventClickArg, MoreLinkArg, EventApi } from '@fullcalendar/core';
-import { HoverCard, HoverCardContent, HoverCardTrigger } from "./ui/hover-card"; // Re-enabled HoverCard import
+import { EventContentArg, EventClickArg, EventApi } from '@fullcalendar/core';
+import { HoverCard, HoverCardContent, HoverCardTrigger } from "./ui/hover-card";
 import { Button } from "./ui/button";
 import { cn } from '../lib/utils';
 
@@ -33,7 +33,6 @@ interface CalendarEvent {
   updated_at?: string;
 }
 
-// --- Custom Modal Component for "+more" link ---
 interface YourCustomMoreEventsModalProps {
   date: Date;
   events: EventApi[];
@@ -45,15 +44,15 @@ function YourCustomMoreEventsModal({ date, events, onClose, onToggleComplete }: 
   return (
     <div style={{
         position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
-        backgroundColor: 'hsl(var(--card))', color: 'hsl(var(--card-foreground))', 
+        backgroundColor: 'hsl(var(--card))', color: 'hsl(var(--card-foreground))',
         padding: '20px', border: '1px solid hsl(var(--border))', borderRadius: 'var(--radius)',
         boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
         zIndex: 10000,
-        width: '90vw', maxWidth: '500px', 
+        width: '90vw', maxWidth: '500px',
         maxHeight: '70vh', display: 'flex', flexDirection: 'column'
     }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
-            <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 600 }}>Events for {format(date, 'MMMM d, yyyy')}</h3>
+            <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 600 }}>Events for {format(date, 'MMMM d, Ото')}</h3>
             <Button variant="ghost" size="sm" onClick={onClose} aria-label="Close modal">
                 <X className="h-4 w-4" />
             </Button>
@@ -87,8 +86,8 @@ function YourCustomMoreEventsModal({ date, events, onClose, onToggleComplete }: 
                      )}
                     <Button
                        variant="outline"
-                       size="sm" // Changed from 'xs' as it might not be standard in Shadcn/ui Button
-                       className="w-full mt-2 h-8 text-xs" // Kept h-7 and text-xs for smaller button
+                       size="sm"
+                       className="w-full mt-2 h-8 text-xs"
                        onClick={() => onToggleComplete(event.id, event.extendedProps.completed)}
                      >
                        {event.extendedProps.completed ? (
@@ -107,7 +106,6 @@ function YourCustomMoreEventsModal({ date, events, onClose, onToggleComplete }: 
     </div>
   );
 }
-// --- End of Custom Modal Component ---
 
 
 export default function AICalendarWidget({ applications, companies }: AICalendarWidgetProps) {
@@ -115,27 +113,24 @@ export default function AICalendarWidget({ applications, companies }: AICalendar
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState({ schedule: false, reminders: false, events: true });
 
-  // State for custom "+more" modal
   const [customMoreModalOpen, setCustomMoreModalOpen] = useState(false);
   const [customMoreModalDate, setCustomMoreModalDate] = useState<Date | null>(null);
   const [customMoreModalEvents, setCustomMoreModalEvents] = useState<EventApi[]>([]);
 
-  // States for HoverCard/Mobile display logic
   const [mounted, setMounted] = useState(false);
-  const [selectedEventId, setSelectedEventId] = useState<string | null>(null); // For mobile click-to-expand
+  const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
   const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
-    // Delay mounting for components that might need measurements after initial render (like HoverCard)
     const timer = setTimeout(() => {
       setMounted(true);
-    }, 250); // Adjust delay as needed
+    }, 250);
     
     const checkMobile = () => {
       setIsMobile(window.matchMedia('(max-width: 768px)').matches);
     };
     
-    checkMobile(); // Initial check
+    checkMobile();
     window.addEventListener('resize', checkMobile);
     
     return () => {
@@ -209,9 +204,8 @@ export default function AICalendarWidget({ applications, companies }: AICalendar
           .eq('id', eventId)
           .eq('user_id', authData.user.id);
         if (error) throw error;
-        await fetchCalendarEvents(); // Refetch all events to update main calendar
+        await fetchCalendarEvents();
         
-        // If the custom modal is open, update its events list too
         if (customMoreModalOpen) {
           setCustomMoreModalEvents(prevEvents =>
             prevEvents.map(ev =>
@@ -219,17 +213,6 @@ export default function AICalendarWidget({ applications, companies }: AICalendar
             )
           );
         }
-        // If the mobile accordion-style detail is open for this event, it will also need an update or to be closed
-        if (isMobile && selectedEventId === eventId) {
-            // This is tricky because selectedEventId doesn't hold the event object itself.
-            // For simplicity, we can close it. A more robust solution would update the specific event if displayed.
-            // Or, since fetchCalendarEvents() is called, the main 'events' list will update,
-            // and if 'selectedEventId' leads to re-rendering details from that list, it should reflect.
-            // However, selectedEventId just toggles visibility of already rendered details.
-            // For now, let's rely on the full list re-render.
-        }
-
-
     } catch(error) { console.error("Error updating event status:", error); alert(`Failed to update event status: ${(error as Error).message}`); }
   };
 
@@ -238,17 +221,14 @@ export default function AICalendarWidget({ applications, companies }: AICalendar
     console.log("Date clicked:", arg.dateStr);
   };
 
-  // Updated handleEventClick for mobile interaction
   const handleEventClick = (clickInfo: EventClickArg) => {
     console.log('Event Clicked:', clickInfo.event.title);
     if (isMobile) {
-      // Toggle visibility of details for the clicked event on mobile
       const clickedEventOriginalId = clickInfo.event.extendedProps.originalId as string;
       setSelectedEventId(prevSelectedId => 
         prevSelectedId === clickedEventOriginalId ? null : clickedEventOriginalId
       );
     }
-    // Prevent default browser action if the event element is, e.g., an anchor
     clickInfo.jsEvent.preventDefault();
   };
 
@@ -268,13 +248,12 @@ export default function AICalendarWidget({ applications, companies }: AICalendar
     className: event.completed ? 'fc-event-completed' : 'fc-event-pending',
   }));
 
-  // renderEventContent with HoverCard and mobile-specific logic restored
   const renderEventContent = (eventInfo: EventContentArg) => {
     const { event } = eventInfo;
     const { description, eventType, completed, originalId, related_application_id, related_task_id } = event.extendedProps;
     const isSelectedOnMobile = selectedEventId === originalId;
 
-    // Common visual part of the event (dot and title)
+    // The dot's color is still determined by 'completed' status here:
     const eventDisplayContent = (
       <div className="fc-event-title-container truncate w-full h-full flex items-center p-0.5">
         <span className={cn("fc-event-dot mr-1 flex-shrink-0", completed ? "bg-green-500" : "bg-primary" )}></span>
@@ -282,7 +261,6 @@ export default function AICalendarWidget({ applications, companies }: AICalendar
       </div>
     );
 
-    // Common detailed content for popover/mobile expansion
     const eventDetailsPopoverContent = (
       <div className="space-y-2 p-3">
          <h4 className="font-semibold break-words leading-tight">{event.title}</h4>
@@ -345,14 +323,12 @@ export default function AICalendarWidget({ applications, companies }: AICalendar
 
     if (isMobile) {
       return (
-        <div className="relative"> {/* Added relative for absolute positioning of details */}
-          {/* The event itself is clickable to toggle details */}
+        <div className="relative">
           <div onClick={() => handleEventClick({ event: eventInfo.event, el: eventInfo.el, jsEvent: new MouseEvent('click'), view: eventInfo.view } as EventClickArg)} className="cursor-pointer">
             {eventDisplayContent}
           </div>
           {isSelectedOnMobile && (
-            // Mobile expanded details shown below the event
-            <div className="mobile-event-details bg-popover border border-border rounded-lg shadow-lg mt-1 p-2 z-10"> {/* Ensure z-index if needed */}
+            <div className="mobile-event-details bg-popover border border-border rounded-lg shadow-lg mt-1 p-2 z-10">
               {eventDetailsPopoverContent}
             </div>
           )}
@@ -360,11 +336,9 @@ export default function AICalendarWidget({ applications, companies }: AICalendar
       );
     }
 
-    // Desktop: Use HoverCard, only if 'mounted' is true
     return mounted ? (
       <HoverCard openDelay={200} closeDelay={100}>
         <HoverCardTrigger asChild>
-          {/* The trigger should be what the user hovers over */}
           <div className="fc-event-trigger-desktop w-full h-full block cursor-pointer">
             {eventDisplayContent}
           </div>
@@ -373,8 +347,7 @@ export default function AICalendarWidget({ applications, companies }: AICalendar
             className={cn(
                 "max-w-xs text-sm rounded-lg shadow-xl border",
                 "bg-popover text-popover-foreground",
-                "z-[50]" // Ensure this z-index is sufficient; FullCalendar's "+more" popover might also have a high z-index.
-                         // Your custom "+more" modal uses zIndex: 10000. This HoverCard should be below that if they overlap.
+                "z-[50]"
             )}
             side="top"
             align="center"
@@ -384,7 +357,6 @@ export default function AICalendarWidget({ applications, companies }: AICalendar
         </HoverCardContent>
       </HoverCard>
     ) : (
-      // Render basic content if not yet "mounted" (helps avoid initial measurement issues)
       eventDisplayContent
     );
   };
@@ -401,7 +373,7 @@ export default function AICalendarWidget({ applications, companies }: AICalendar
             onClick={() => handleGenerateRemindersForDate(selectedDate)}
             disabled={loading.reminders || loading.schedule || loading.events}
             size="sm"
-            title={`Generate AI tasks for ${format(selectedDate, 'MMM d, yyyy')}`}
+            title={`Generate AI tasks for ${format(selectedDate, 'MMM d, Ото')}`}
           >
             <RefreshCw className={`h-4 w-4 mr-2 ${loading.reminders ? 'animate-spin' : ''}`} />
             Gen Tasks ({format(selectedDate, 'MMM d')})
@@ -430,34 +402,28 @@ export default function AICalendarWidget({ applications, companies }: AICalendar
             </div>
         )}
         {!loading.events && events.length > 0 && (
-          <div className="calendar-container relative p-1 bg-card rounded-lg border shadow-sm text-sm"> {/* Removed z-0 that might have conflicted */}
+          <div className="calendar-container relative p-1 bg-card rounded-lg border shadow-sm text-sm">
             <FullCalendar
               key={events.map(e=>e.id + (e.completed !== undefined ? e.completed.toString() : 'false')).join(',')}
               plugins={[dayGridPlugin, interactionPlugin]}
               initialView="dayGridMonth"
               events={formattedEvents}
-              eventContent={renderEventContent} // This now uses the restored HoverCard logic
+              eventContent={renderEventContent}
               dateClick={handleDateClick}
-              eventClick={handleEventClick} // handleEventClick now manages mobile detail expansion
+              eventClick={handleEventClick}
               headerToolbar={{ left: 'prev,next today', center: 'title', right: 'dayGridMonth,dayGridWeek' }}
               buttonText={{ today: 'Today', month: 'Month', week: 'Week' }}
               height="auto" 
-              dayMaxEvents={2} 
-              moreLinkClassNames={"text-xs text-primary hover:underline p-0.5"}
+              dayMaxEvents={true}
               displayEventTime={false} 
               weekends={true}
               viewClassNames={"text-xs"} 
               dayHeaderClassNames={"text-xs font-medium text-muted-foreground"}
-              
-              moreLinkClick={(arg: MoreLinkArg) => {
-                console.log("More link clicked. Date:", arg.date, "Hidden event segments:", arg.hiddenSegs);
-                setCustomMoreModalDate(arg.date);
-                setCustomMoreModalEvents(arg.hiddenSegs.map(seg => seg.event)); 
-                setCustomMoreModalOpen(true);
-              }}
             />
           </div>
         )}
+        {/* Removed the legend section below */}
+        {/*
         <div className="mt-2 flex gap-4 text-xs px-1 text-muted-foreground">
           <div className="flex items-center gap-1.5">
             <span className="fc-event-dot bg-primary"></span>
@@ -468,6 +434,7 @@ export default function AICalendarWidget({ applications, companies }: AICalendar
             <span>Completed</span>
           </div>
         </div>
+        */}
       </div>
 
       {customMoreModalOpen && customMoreModalDate && (

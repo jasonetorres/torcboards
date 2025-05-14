@@ -1,6 +1,7 @@
+// openai.ts
 import OpenAI from 'openai';
-import { supabase } from './supabase'; // Assuming supabase is configured elsewhere if needed by other functions
-import { format, addDays, startOfWeek } from 'date-fns'; // Ensure all needed date-fns are imported
+import { supabase } from './supabase'; // Adjust path if necessary
+import { format, addDays, startOfWeek } from 'date-fns'; // Adjust path if necessary
 
 // --- Type Definitions ---
 interface AIEventData {
@@ -59,137 +60,157 @@ if (import.meta.env.VITE_OPENAI_API_KEY) {
 
 const isOpenAIConfigured = () => isConfigured && openai !== null;
 
-// --- Resume Template Content (Revised for resumeview.tsx parser compatibility) ---
 const RESUME_TEMPLATE_MARKDOWN_FOR_PARSER = `
-JOHN DOE
-Senior Software Engineer
+JOHN DOE  <-- THIS LINE MUST BE THE USER'S ACTUAL FULL NAME FROM THEIR RESUME
+Senior Software Engineer <-- THIS LINE IS THE PROFESSIONAL TITLE (CAN BE DERIVED FROM TARGET ROLE/JD)
 john.doe@example.com | (555) 123-4567 | linkedin.com/in/johndoe | github.com/johndoe | portfolio.johndoe.com
 
 ---
 
 ### PERSONAL SUMMARY
-Highly motivated and results-oriented Senior Software Engineer with 8+ years of experience in developing and implementing scalable software solutions. Proven ability to lead projects, mentor junior developers, and collaborate effectively in fast-paced Agile environments. Seeking to leverage expertise in full-stack development to contribute to a dynamic organization. *(This section will be parsed as a single block of text for the summary.)*
+Highly motivated and results-oriented Senior Software Engineer...
 
 ---
 
 ### TECHNICAL SKILLS
 - JavaScript (Expert)
 - TypeScript (Advanced)
-- React (Proficient)
-- Node.js (Proficient)
-- Python
-- SQL (PostgreSQL, MySQL)
-- AWS (EC2, S3, Lambda)
-- Docker
-- Kubernetes
-- Git
-*(Skills should be listed one per line, starting with '-' or '*', with optional proficiency in parentheses. This structure is for the 'TECHNICAL SKILLS' section in resumeview.tsx).*
+...
 
 ---
 
 ### EXPERIENCE
 - **Senior Software Engineer** at Tech Solutions Inc. | San Francisco, CA | Jan 2020 – Present
-  - Led a team of 5 engineers in the development of a new flagship product, resulting in a 30% market share increase within the first year.
-  - Designed and implemented microservices architecture using Node.js and Docker, improving system scalability and reducing downtime by 15%.
-  - Tech Stack: JavaScript, TypeScript, React, Node.js, Python, AWS, Docker, Kubernetes.
-  - Mentored junior engineers, fostering a culture of continuous learning and development.
+  {/* AI Note: Dates MUST be in "Month Year – Month Year" or "Month Year – Present" format. E.g., "January 2020 – Present" */}
+  - Led a team of 5 engineers...
+  - Tech Stack: JavaScript, TypeScript, React...
 
 - **Software Engineer** at Innovatech Ltd. | Boston, MA | Jun 2017 – Dec 2019
-  - Developed and maintained features for a high-traffic e-commerce platform using React and Python (Django).
-  - Contributed to a 20% improvement in application performance by optimizing database queries and refactoring legacy code.
-  - Collaborated with cross-functional teams to deliver projects on time and within budget.
-
-*(Each experience item MUST start with '- **Job Title** at Company Name | Location (optional) | Start Date – End Date (or Present)'. The 'at Company Name' part is important for the parser if company name is not part of the bolded title. Subsequent lines are descriptions/bullet points. 'Tech Stack:' lines will be part of the description.)*
+  {/* AI Note: Dates MUST be in "Month Year – Month Year" format. E.g., "June 2017 – December 2019" */}
+  - Developed and maintained features...
 
 ---
 
 ### TECHNICAL PROJECTS
 - **Personal Portfolio Website** | Self-driven | Jan 2023 – Present
-  - Developed a responsive personal portfolio website using Next.js and Tailwind CSS to showcase projects and skills.
-  - Integrated with Contentful CMS for easy content management.
-  - Deployed on Vercel. View at: https://yourportfolio.example.com
-
-- **E-commerce Recommendation Engine** | University Capstone | Sep 2016 – May 2017
-  - Built a collaborative filtering recommendation engine using Python and Scikit-learn.
-  - Achieved 85% accuracy in predicting user preferences on a dataset of 100,000 interactions.
-
-*(Project items should follow a similar format: '- **Project Name** | Optional Context (e.g., 'Self-driven', 'University Capstone') | Start Date – End Date (or Present)'. Subsequent lines are descriptions.)*
+  {/* AI Note: Dates MUST be in "Month Year – Month Year" or "Month Year – Present" format. */}
+  - Developed a responsive personal portfolio website...
 
 ---
 
 ### EDUCATION
 - **Master of Science in Computer Science** | Stanford University | Stanford, CA | Aug 2015 – May 2017
+  {/* AI Note: Dates MUST be in "Month Year – Month Year" or "Month Year – Present" format. E.g., "August 2015 – May 2017" */}
   - Specialization in Artificial Intelligence.
-  - Thesis: "Advanced Algorithms for Natural Language Processing."
 
 - **Bachelor of Science in Software Engineering** | Massachusetts Institute of Technology (MIT) | Cambridge, MA | Sep 2011 – May 2015
+  {/* AI Note: Dates MUST be in "Month Year – Month Year" format. */}
   - Graduated Magna Cum Laude.
-  - Relevant coursework: Data Structures, Algorithms, Database Management.
-
-*(Education items MUST start with '- **Degree Name (or Institution if degree is on next line)** | Optional Location | Start Date – End Date (or Present)'. If degree is not on the first line, the next line should contain 'Degree in Field of Study' or just the 'Degree' for the parser to pick it up correctly.)*
 `;
 
-// --- analyzeResume (MODIFIED to use the new template string) ---
+// --- analyzeResume (MODIFIED) ---
 export async function analyzeResume(
   resumeText: string,
-  targetRole?: string
+  targetRole?: string,
+  jobDescriptionText?: string
 ): Promise<EnhancedAnalysisResult> {
   if (!isOpenAIConfigured() || !openai) {
     return {
-      suggestionsMarkdown: "OpenAI API key not configured or client failed to initialize. Resume analysis unavailable.",
+      suggestionsMarkdown: "OpenAI API key not configured. Resume analysis unavailable.",
     };
   }
 
+  const userStylePreference = `
+User's Preferred Resume Style (for overall tone, section content, and professionalism - as per their template provided in conversation 'Resume Template.txt' [cite: 1]):
+The user's template emphasizes a clean, professional, and simple format. It uses a table-like structure for sections like 'CAREER SUMMARY' (with Experience, Skill Highlight, Languages, Tools) and specific formatting for 'PROFESSIONAL EXPERIENCE' (Company, Location on one line, Position, Dates on another, then Technologies, then bullet points).
+Key elements from their preferred style:
+- CAREER SUMMARY: Includes Experience, Skill Highlight, Languages, Tools[cite: 1].
+- PROFESSIONAL EXPERIENCE: Emphasis on wins, unique responsibilities, 3-5 bullet points, quantification. Technologies listed[cite: 1]. Don’t give a description of the company or describe the generic role[cite: 1].
+- PROJECTS: Similar detail to experience, including technologies and quantification[cite: 1].
+- EDUCATION & ACCREDITATIONS: School, Program, Dates, notable bullet points only if relevant[cite: 1].
+- General: Aim for 1 page. Order languages by strength (strongest to weakest)[cite: 1]. Include full URLs rather than hyperlinked text[cite: 1]. No career objective on the resume itself[cite: 1].
+While the "correctedResumeMarkdown" MUST adhere to the RESUME_MARKDOWN_TEMPLATE_FOR_PARSER for system compatibility, the *content*, *level of detail*, *sectioning intent*, and *professional tone* within those parseable sections should be heavily inspired by the user's preferred style. For example, information that would go into their 'CAREER SUMMARY' table (like 'Skill Highlight', 'Languages', 'Tools') should be integrated effectively into the '### PERSONAL SUMMARY' or '### TECHNICAL SKILLS' sections of the output parser template.
+`;
+
   const systemPrompt = `You are an expert resume reviewer and career coach.
-Your task is to analyze the provided resume content for the specified target role.
+Your task is to analyze the provided resume content. You will be given the user's current resume text, an optional target role, and an optional job description text.
+
+1.  **Extract User's Full Name:** Identify the user's full name from their "User's Current Resume Content". This name MUST be placed on the very first line of your "correctedResumeMarkdown".
+2.  **Determine Professional Title:** Based on the job description (if provided), the target role (if provided), or the user's current/most recent role in their resume, determine an appropriate professional title. This title MUST be placed on the second line of "correctedResumeMarkdown", directly below the user's full name.
+3.  **Job Description Focus (If Provided):** If a job description is provided, your primary goal is to meticulously analyze it to identify key requirements, skills, technologies, and keywords. Then, review the resume specifically against this job description.
+4.  **Target Role Focus (If JD Not Provided):** If no job description is available, use the target role (if provided) to guide your analysis and suggestions.
+5.  **General Review (If Neither JD Nor Role Provided):** If neither is available, provide a general best-practice review.
+
 You must return your feedback as a VALID JSON object with two main keys:
-1.  "suggestionsMarkdown": Provide detailed, actionable suggestions to improve the resume. This should be formatted as Markdown. Analyze section by section. Focus on clarity, impact, action verbs, quantifiable achievements, and ATS optimization.
-2.  "correctedResumeMarkdown": Provide a complete, rewritten version of the entire resume content, also formatted as Markdown. **This rewritten resume MUST strictly adhere to the specific Markdown structure, section headings (e.g., '### PERSONAL SUMMARY', '### EXPERIENCE'), item formatting (e.g., '- **Title** at Company | Location | Dates'), and all guidelines provided in the "RESUME MARKDOWN TEMPLATE FOR PARSER" section below. This is critical for the resume to be parsed correctly by our system.**
+    a.  "suggestionsMarkdown": Provide detailed, actionable suggestions to improve the resume, formatted as Markdown. Clearly explain how your suggestions align with the job description (if provided) or the target role. Highlight areas for improvement regarding keywords, quantifiable achievements, action verbs, and overall impact relevant to the job description/target role.
+    b.  "correctedResumeMarkdown": Provide a complete, rewritten version of the entire resume content, also formatted as Markdown. This version MUST incorporate your suggestions and be highly tailored to the job description (if provided) or the target role.
+
+**VERY IMPORTANT FOR "correctedResumeMarkdown":**
+    - The **first line MUST be the user's Full Name** (extracted from their resume).
+    - The **second line MUST be the Professional Title** (derived from target role/JD/current role).
+    - Subsequent lines in the header should be contact information (email, phone, LinkedIn, GitHub, Portfolio URLs if found in the resume).
+    - It MUST then strictly adhere to the specific Markdown structure (section headers like '### PERSONAL SUMMARY', '### EXPERIENCE', item formatting like '- **Title** at Company | Location | Dates') and guidelines provided in the "RESUME MARKDOWN TEMPLATE FOR PARSER" section below. This ensures the resume can be parsed by our system.
+    - **All dates (for experience, education, projects) MUST be written in the format "Month Year – Month Year" or "Month Year – Present" (e.g., "January 2020 – Present", "August 2015 – May 2017"). Do NOT use "MM/YYYY" or other formats.**
+    - While adhering to the parser template for structure, the *content, detail, and professional tone* should be inspired by the user's preferred style notes provided below (from "Resume Template.txt" [cite: 1]).
 
 Ensure the output is a single JSON object.
 
-RESUME MARKDOWN TEMPLATE FOR PARSER:
+RESUME MARKDOWN TEMPLATE FOR PARSER (Structure to follow for "correctedResumeMarkdown"):
 ---
 ${RESUME_TEMPLATE_MARKDOWN_FOR_PARSER}
 ---
+
+USER'S PREFERRED RESUME STYLE GUIDANCE (for content and tone, from "Resume Template.txt" [cite: 1]):
+---
+${userStylePreference}
+---
 `;
 
-  const userPrompt = `Target Role: ${targetRole || 'Not specified (provide general improvements adhering to the parser template)'}
+  const userPromptParts = [];
+  userPromptParts.push(`Target Role (use for deriving Professional Title if JD is not specific, or as secondary context): ${targetRole || 'Not specified'}`);
 
-Resume Content to Analyze:
+  if (jobDescriptionText && jobDescriptionText.trim() !== "") {
+    userPromptParts.push(`Job Description (Primary focus for tailoring and deriving Professional Title):
+---
+${jobDescriptionText}
+---`);
+  } else {
+    userPromptParts.push(`No specific job description text provided. Derive Professional Title from Target Role or current resume. Proceed with analysis based on Target Role or general best practices, keeping the user's style preference in mind.`);
+  }
+
+  userPromptParts.push(`User's Current Resume Content (Source for User's Full Name and existing experience):
 ---
 ${resumeText}
----`;
+---`);
+
+  const userPrompt = userPromptParts.join('\n\n');
 
   try {
     const response = await openai.chat.completions.create({
-      model: "gpt-4-turbo",
+      model: "gpt-4-turbo", // Or your preferred model
       response_format: { type: "json_object" },
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt }
       ],
-      temperature: 0.2, // Further lowered temperature for very strict adherence
+      temperature: 0.3, // Keep temperature low for structured output
     });
 
     if (response.choices[0]?.message?.content) {
       try {
         const parsedResult = JSON.parse(response.choices[0].message.content) as EnhancedAnalysisResult;
-        if (typeof parsedResult.suggestionsMarkdown === 'string') {
-          return {
-            suggestionsMarkdown: parsedResult.suggestionsMarkdown,
-            correctedResumeMarkdown: typeof parsedResult.correctedResumeMarkdown === 'string' ? parsedResult.correctedResumeMarkdown : undefined,
-          };
+        if (typeof parsedResult.suggestionsMarkdown === 'string' && (parsedResult.correctedResumeMarkdown === undefined || typeof parsedResult.correctedResumeMarkdown === 'string') ) {
+          return parsedResult;
         } else {
           console.error("AI response JSON did not match expected structure:", parsedResult);
           return {
-            suggestionsMarkdown: "Error: AI analysis returned an unexpected data structure. The raw response was: \n\n" + response.choices[0].message.content,
+            suggestionsMarkdown: "Error: AI analysis returned an unexpected data structure. Raw: " + response.choices[0].message.content,
           };
         }
       } catch (parseError) {
-        console.error("Error parsing AI JSON response for resume analysis:", parseError, "\nRaw AI Response:", response.choices[0].message.content);
+        console.error("Error parsing AI JSON response:", parseError, "\nRaw AI Response:", response.choices[0].message.content);
         return {
-          suggestionsMarkdown: `Error: Could not parse the AI's response. The AI might have returned invalid JSON. The raw response started with: \n\n${response.choices[0].message.content.substring(0, 300)}...`,
+          suggestionsMarkdown: `Error: Could not parse AI's response. Raw response started with: \n\n${response.choices[0].message.content.substring(0, 300)}...`,
         };
       }
     } else {
@@ -201,16 +222,19 @@ ${resumeText}
     console.error("Error during OpenAI API call for resume analysis:", error);
     if (error instanceof OpenAI.APIError) {
       return {
-        suggestionsMarkdown: `Error from OpenAI API during resume analysis: ${error.status} ${error.name} - ${error.message}`,
+        suggestionsMarkdown: `Error from OpenAI API: ${error.status} ${error.name} - ${error.message}`,
       };
     }
     return {
-      suggestionsMarkdown: "An unexpected error occurred while analyzing the resume. Please check the console for more details.",
+      suggestionsMarkdown: "An unexpected error occurred while analyzing resume.",
     };
   }
 }
 
-// --- Helper function to map CalendarEventRow to TaskInsertData (Kept as is) ---
+// ... (rest of your openai.ts file - mapCalendarEventToTaskData, generateSmartReminders, etc.)
+// These helper functions and other AI calls remain unchanged from your previous version.
+
+// Helper function to map CalendarEventRow to TaskInsertData
 function mapCalendarEventToTaskData(event: CalendarEventRow, userId: string): TaskInsertData {
     const taskStatus: TaskInsertData['status'] = event.completed ? 'completed' : 'pending';
     let taskSource = 'ai_generated';
@@ -228,7 +252,7 @@ function mapCalendarEventToTaskData(event: CalendarEventRow, userId: string): Ta
         title: event.title,
         description: event.description || null,
         due_date: event.event_date || null,
-        priority: 'medium',
+        priority: 'medium', 
         status: taskStatus,
         source: taskSource,
         related_calendar_event_id: event.id,
@@ -236,7 +260,7 @@ function mapCalendarEventToTaskData(event: CalendarEventRow, userId: string): Ta
     };
 }
 
-// --- generateSmartReminders (Kept as is) ---
+// generateSmartReminders
 export async function generateSmartReminders(date: Date, applications: any[], companies: any[]): Promise<void> {
   if (!isOpenAIConfigured() || !openai) { console.warn("OpenAI not configured for smart reminders."); return; }
   const { data: authData } = await supabase.auth.getUser();
@@ -244,7 +268,7 @@ export async function generateSmartReminders(date: Date, applications: any[], co
   const userId = authData.user.id;
   try {
     const formattedDate = format(date, 'yyyy-MM-dd');
-    const appContext = applications.slice(0, 5).map(app => ({ id: app.id, position: app.position, next_follow_up: app.next_follow_up, company_name: app.companies?.name }));
+    const appContext = applications.slice(0, 5).map(app => ({ id: app.id, position: app.position, next_follow_up: app.next_follow_up, company_name: (app as any).companies?.name }));
     const companyContext = companies.slice(0, 5).map(c => ({ id: c.id, name: c.name }));
     const response = await openai.chat.completions.create({
         model: "gpt-4-turbo", response_format: { type: "json_object" },
@@ -256,7 +280,7 @@ export async function generateSmartReminders(date: Date, applications: any[], co
       if (response.choices[0]?.message?.content) {
         const parsedResponse = JSON.parse(response.choices[0].message.content);
         if (parsedResponse && Array.isArray(parsedResponse.tasks)) {
-            aiEventDataArray = parsedResponse.tasks;
+            aiEventDataArray = parsedResponse.tasks as AIEventData[];
         } else { console.warn("AI response 'tasks' field is not a valid array:", parsedResponse); }
       }
     } catch (parseError) { console.error("Error parsing AI JSON for reminders:", parseError, response.choices[0]?.message?.content); return; }
@@ -274,9 +298,9 @@ export async function generateSmartReminders(date: Date, applications: any[], co
         .select();
       if (upsertError) { console.error("Error upserting AI reminders into calendar_events:", upsertError); }
       else if (upsertedCalendarEvents) {
-        const tasksToSave = upsertedCalendarEvents.map(calEvent => mapCalendarEventToTaskData(calEvent as CalendarEventRow, userId));
+        const tasksToSave: TaskInsertData[] = upsertedCalendarEvents.map(calEvent => mapCalendarEventToTaskData(calEvent as CalendarEventRow, userId));
         if (tasksToSave.length > 0) {
-          const { error: taskUpsertError } = await supabase.from('tasks').upsert(tasksToSave, { onConflict: 'user_id, related_calendar_event_id' });
+          const { error: taskUpsertError } = await supabase.from('tasks').upsert(tasksToSave, { onConflict: 'user_id,related_calendar_event_id' });
           if (taskUpsertError) { console.error("Error upserting corresponding tasks:", taskUpsertError); }
         }
       }
@@ -284,7 +308,7 @@ export async function generateSmartReminders(date: Date, applications: any[], co
   } catch (error: any) { console.error('Error in generateSmartReminders:', error); if (error instanceof OpenAI.APIError) { console.error(`OpenAI API Error: ${error.status} ${error.name} ${error.message}`); } }
 }
 
-// --- generateJobHuntingSchedule (Kept as is) ---
+// generateJobHuntingSchedule
 export async function generateJobHuntingSchedule(applications: any[], companies: any[]): Promise<void> {
     if (!isOpenAIConfigured() || !openai) { console.warn("OpenAI not configured for schedule."); return; }
     const { data: authData } = await supabase.auth.getUser();
@@ -295,7 +319,7 @@ export async function generateJobHuntingSchedule(applications: any[], companies:
         const startOfThisWeek = startOfWeek(today, { weekStartsOn: 1 });
         const scheduleDates = Array.from({ length: 5 }).map((_, i) => format(addDays(startOfThisWeek, i), 'yyyy-MM-dd'));
         const dateRangeStr = `${scheduleDates[0]} to ${scheduleDates[scheduleDates.length - 1]}`;
-        const appContext = applications.slice(0, 10).map(app => ({ id: app.id, position: app.position, next_follow_up: app.next_follow_up, company_name: app.companies?.name }));
+        const appContext = applications.slice(0, 10).map(app => ({ id: app.id, position: app.position, next_follow_up: app.next_follow_up, company_name: (app as any).companies?.name }));
         const companyContext = companies.slice(0, 10).map(c => ({ id: c.id, name: c.name }));
         const response = await openai.chat.completions.create({
             model: "gpt-4-turbo", response_format: { type: "json_object" },
@@ -306,7 +330,7 @@ export async function generateJobHuntingSchedule(applications: any[], companies:
         try {
             if (response.choices[0]?.message?.content) {
                 const parsedResponse = JSON.parse(response.choices[0].message.content);
-                if (parsedResponse && Array.isArray(parsedResponse.schedule_items)) { aiScheduleItems = parsedResponse.schedule_items; }
+                if (parsedResponse && Array.isArray(parsedResponse.schedule_items)) { aiScheduleItems = parsedResponse.schedule_items as AIEventData[]; }
                 else { console.warn("AI response 'schedule_items' field is not a valid array:", parsedResponse); }
             }
         } catch (parseError) { console.error("Error parsing AI JSON for schedule:", parseError, response.choices[0]?.message?.content); return; }
@@ -324,9 +348,9 @@ export async function generateJobHuntingSchedule(applications: any[], companies:
                 .select();
             if (upsertError) { console.error("Error upserting AI schedule into calendar_events:", upsertError); }
             else if (upsertedCalendarEvents) {
-                const tasksToSave = upsertedCalendarEvents.map(calEvent => mapCalendarEventToTaskData(calEvent as CalendarEventRow, userId));
+                const tasksToSave: TaskInsertData[] = upsertedCalendarEvents.map(calEvent => mapCalendarEventToTaskData(calEvent as CalendarEventRow, userId));
                 if (tasksToSave.length > 0) {
-                  const { error: taskUpsertError } = await supabase.from('tasks').upsert(tasksToSave, { onConflict: 'user_id, related_calendar_event_id' });
+                  const { error: taskUpsertError } = await supabase.from('tasks').upsert(tasksToSave, { onConflict: 'user_id,related_calendar_event_id' });
                   if (taskUpsertError) { console.error("Error upserting corresponding tasks from schedule:", taskUpsertError); }
                 }
             }
@@ -334,7 +358,7 @@ export async function generateJobHuntingSchedule(applications: any[], companies:
     } catch (error: any) { console.error('Error in generateJobHuntingSchedule:', error); if (error instanceof OpenAI.APIError) { console.error(`OpenAI API Error: ${error.status} ${error.name} ${error.message}`); } }
 }
 
-// --- Other AI functions (Kept as is) ---
+// Other AI functions
 export async function suggestNetworkingActions(applications: any[], companies: any[]): Promise<string | null> {
   if (!isOpenAIConfigured() || !openai) {
     console.warn("OpenAI not configured. Cannot suggest networking actions.");
@@ -358,6 +382,7 @@ export async function suggestNetworkingActions(applications: any[], companies: a
     return "An unexpected error occurred while generating networking suggestions. Please try again later.";
   }
 }
+
 export async function generateWelcomeEmail(firstName: string): Promise<string | null> {
   if (!isOpenAIConfigured() || !openai) {
     console.warn("OpenAI not configured. Cannot generate welcome email.");
@@ -369,11 +394,12 @@ export async function generateWelcomeEmail(firstName: string): Promise<string | 
         messages: [ { role: "system", content: "You are a friendly career assistant for a Job Hunt CRM." }, { role: "user", content: `Write a short, warm welcome email for ${firstName}, briefly mentioning key features like application tracking, calendar, and tasks.` } ]
     });
     return response.choices[0].message.content;
-  } catch (error) {
+  } catch (error: any) { 
     console.error("Error generating welcome email:", error);
     return `Welcome ${firstName}! There was an issue generating a personalized message. You can start tracking your job applications, manage tasks, and use the AI tools to help your search.`;
   }
 }
+
 export async function generateWeeklyRecapEmail(stats: any, firstName: string): Promise<string | null> {
   if (!isOpenAIConfigured() || !openai) {
     console.warn("OpenAI not configured. Cannot generate weekly recap.");
@@ -385,17 +411,21 @@ export async function generateWeeklyRecapEmail(stats: any, firstName: string): P
         messages: [ { role: "system", content: "You are a career coach. Write a concise, encouraging weekly recap HTML email based on provided stats." }, { role: "user", content: `Generate HTML email recap for ${firstName}. Stats: Apps: ${stats.applications_count}, Interviews: ${JSON.stringify(stats.upcoming_interviews)}, Tasks Due: ${JSON.stringify(stats.tasks_due)}. Include summary, insights, suggestions, and motivation.` } ]
     });
     return response.choices[0].message.content;
-   } catch (error) {
+   } catch (error: any) { 
     console.error("Error generating weekly recap:", error);
     return "Error generating weekly recap email.";
    }
 }
-export async function analyzeJobDescription(jobDescription: string): Promise<string> {
+
+export async function analyzeJobDescription(jobDescriptionText: string): Promise<string> {
   if (!isOpenAIConfigured() || !openai) return "OpenAI API key not configured. Job description analysis unavailable.";
   try {
       const response = await openai.chat.completions.create({
          model: "gpt-4-turbo",
-         messages: [ { role: "system", content: "You are a job market analyst." }, { role: "user", content: `Analyze this job description: ${jobDescription}. Provide: key requirements, skills, resume keywords, application tips, potential interview questions.` } ]
+         messages: [
+            { role: "system", content: "You are a job market analyst. Your task is to analyze the provided job description." },
+            { role: "user", content: `Please analyze the following job description and provide: key requirements, essential skills, desirable skills, resume keywords to include, potential application tips relevant to this description, and a few potential interview questions a candidate might expect based on this job description.\n\nJob Description:\n---\n${jobDescriptionText}\n---` }
+          ]
      });
      return response.choices[0].message.content || "Could not analyze job description.";
   } catch (error: any) {
@@ -404,6 +434,7 @@ export async function analyzeJobDescription(jobDescription: string): Promise<str
     return "An unexpected error occurred while analyzing the job description.";
   }
 }
+
 export async function getInterviewPrep(position: string, company: string): Promise<string> {
   if (!isOpenAIConfigured() || !openai) return "OpenAI API key not configured. Interview prep unavailable.";
    try {

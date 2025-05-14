@@ -391,7 +391,7 @@ const Resume = () => {
                   value={selectedResumeId || "new"}
                   onChange={handleSelectChange}
                   disabled={fileLoading || deleting || saving || loadingAnalysis} // Disable during operations
-                  className="w-full p-2 rounded border border-input bg-background focus:ring-2 focus:ring-primary/50 outline-none text-sm appearance-none bg-chevron-down bg-no-repeat bg-right disabled:opacity-70"
+                  className="w-full p-2 rounded border border-input bg-background text-white focus:ring-2 focus:ring-primary/50 outline-none text-sm appearance-none bg-chevron-down bg-no-repeat bg-right disabled:opacity-70"
                 >
                   <option value="new" disabled={!selectedResumeId && editorContent === '' && resumes.length === 0}>-- New Resume --</option>
                   {resumes.map((resume) => (
@@ -411,7 +411,7 @@ const Resume = () => {
                   onChange={(e) => setTargetRole(e.target.value)}
                   placeholder="e.g., Sr. Software Engineer"
                    disabled={fileLoading || deleting || saving || loadingAnalysis}
-                  className="w-full p-2 rounded border border-input bg-background focus:ring-2 focus:ring-primary/50 outline-none text-sm disabled:opacity-70"
+                  className="w-full p-2 rounded border border-input bg-background text-white focus:ring-2 focus:ring-primary/50 outline-none text-sm disabled:opacity-70"
                 />
               </div>
               {/* --- Action Buttons --- */}

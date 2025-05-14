@@ -1,11 +1,12 @@
+// src/pages/Auth.tsx
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Card, CardBody, Input, Button, Tabs, Tab } from "@heroui/react";
+import { Card, CardBody, Input, Button, Tabs, Tab } from "@heroui/react"; // Assuming @heroui/react is your UI library
 import { Icon } from "@iconify/react";
 import { useDispatch, useSelector } from 'react-redux';
-import { signIn, signUp, clearError } from '../store/authSlice';
-import { AppDispatch, RootState } from '../store';
-import { cn } from '../lib/utils';
+import { signIn, signUp, clearError } from '../store/authSlice'; // Adjust path as necessary
+import { AppDispatch, RootState } from '../store'; // Adjust path as necessary
+import { cn } from '../lib/utils'; // Adjust path as necessary
 
 const Auth = () => {
   const dispatch = useDispatch<AppDispatch>();
@@ -17,24 +18,21 @@ const Auth = () => {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [formError, setFormError] = useState('');
-  const [isPageLoaded, setIsPageLoaded] = useState(false); // New state for animation
+  const [isPageLoaded, setIsPageLoaded] = useState(false);
 
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Effect for page load animation
   useEffect(() => {
     const timer = setTimeout(() => {
       setIsPageLoaded(true);
-    }, 100); // Small delay to ensure styles apply for transition
-    return () => clearTimeout(timer); // Cleanup timer
+    }, 100);
+    return () => clearTimeout(timer);
   }, []);
 
   useEffect(() => {
     if (user && user.id) {
-      console.log("[Auth.tsx] useEffect: User is logged in. Current path:", location.pathname);
       if (location.pathname === '/auth') {
-        console.log("[Auth.tsx] useEffect: User is on /auth page, redirecting to dashboard.");
         navigate('/', { replace: true });
       }
     }
@@ -65,7 +63,6 @@ const Auth = () => {
         const { user: signedUpUser, session, requiresConfirmation: confirmationNeeded } = resultAction.payload;
 
         if (session && signedUpUser) {
-          console.log("[Auth.tsx] Signup successful with immediate session.");
           navigate('/');
         } else if (confirmationNeeded || (signedUpUser && !session)) {
           alert('Registration successful! Please check your email to verify your account before logging in.');
@@ -79,7 +76,8 @@ const Auth = () => {
           setSelected("login");
         }
       }
-    } else {
+      // No explicit else here; authError from Redux will be displayed if signUp.rejected
+    } else { // Login
       if (!email.trim()) {
         setFormError("Email is required.");
         return;
@@ -88,18 +86,17 @@ const Auth = () => {
         setFormError("Password is required.");
         return;
       }
-      const resultAction = await dispatch(signIn({ email, password }));
-
-      if (signIn.fulfilled.match(resultAction) && resultAction.payload.user) {
-        console.log("[Auth.tsx] Signin action fulfilled. User state should be updated in Redux. useEffect will handle redirect if on /auth.");
-      }
+      // Dispatch signIn. If it's successful, the useEffect for user will handle navigation.
+      // If it fails, authError from Redux state will be displayed.
+      await dispatch(signIn({ email, password }));
     }
   };
 
   const handleTabChange = (key: React.Key) => {
     setSelected(key as string);
-    dispatch(clearError());
-    setFormError('');
+    dispatch(clearError()); // Clear Redux auth error
+    setFormError('');      // Clear local form error
+    // Optionally reset form fields
     setEmail('');
     setPassword('');
     setFirstName('');
@@ -108,7 +105,6 @@ const Auth = () => {
 
   return (
     <main className="min-h-screen w-full relative flex items-center justify-center p-4 overflow-y-auto">
-      {/* Background - visible immediately */}
       <div className="fixed inset-0 z-0">
         <img
           src="https://img.heroui.chat/image/landscape?w=1920&h=1080&u=1"
@@ -118,11 +114,10 @@ const Auth = () => {
         <div className="absolute inset-0 bg-black/30" />
       </div>
 
-      {/* Foreground Content - will fade in */}
       <div
         className={cn(
-          "w-full max-w-md z-10 transition-opacity duration-1000 ease-out", // Added transition classes
-          isPageLoaded ? "opacity-100" : "opacity-0" // Conditional opacity
+          "w-full max-w-md z-10 transition-opacity duration-1000 ease-out",
+          isPageLoaded ? "opacity-100" : "opacity-0"
         )}
       >
         <div className="text-center mb-8">
@@ -182,7 +177,7 @@ const Auth = () => {
                     label="First Name"
                     placeholder="Enter first name"
                     value={firstName}
-                    onValueChange={setFirstName}
+                    onValueChange={setFirstName} // Assuming HeroUI Input uses onValueChange
                     variant="bordered" radius="lg" size="md" isRequired
                     startContent={ <Icon icon="lucide:user" className="text-default-400 pointer-events-none flex-shrink-0 text-xl" /> }
                   />
@@ -190,7 +185,7 @@ const Auth = () => {
                     label="Last Name"
                     placeholder="Enter last name"
                     value={lastName}
-                    onValueChange={setLastName}
+                    onValueChange={setLastName} // Assuming HeroUI Input uses onValueChange
                     variant="bordered" radius="lg" size="md" isRequired
                     startContent={ <Icon icon="lucide:user" className="text-default-400 pointer-events-none flex-shrink-0 text-xl" /> }
                   />
@@ -202,7 +197,7 @@ const Auth = () => {
                 placeholder="Enter your email"
                 type="email"
                 value={email}
-                onValueChange={setEmail}
+                onValueChange={setEmail} // Assuming HeroUI Input uses onValueChange
                 variant="bordered" radius="lg" size="md" isRequired
                 startContent={ <Icon icon="lucide:mail" className="text-default-400 pointer-events-none flex-shrink-0 text-xl" /> }
               />
@@ -211,13 +206,14 @@ const Auth = () => {
                 placeholder="Enter your password"
                 type="password"
                 value={password}
-                onValueChange={setPassword}
+                onValueChange={setPassword} // Assuming HeroUI Input uses onValueChange
                 variant="bordered" radius="lg" size="md" isRequired
                 startContent={ <Icon icon="lucide:lock" className="text-default-400 pointer-events-none flex-shrink-0 text-xl" /> }
               />
 
               {selected === "login" && (
                 <div className="flex items-center justify-end pt-1">
+                  {/* "Forgot password?" button can be enabled when functionality is ready */}
                   <Button variant="light" color="primary" size="sm" className="font-medium p-0 text-xs" isDisabled>
                     Forgot password?
                   </Button>
@@ -233,7 +229,7 @@ const Auth = () => {
                 isLoading={isLoading}
               >
                 {isLoading ? 'Processing...' : (selected === "login" ? "Sign In" : "Create Account")}
-              </Button>            
+              </Button>
             </form>
           </CardBody>
         </Card>
