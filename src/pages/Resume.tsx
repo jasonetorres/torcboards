@@ -9,18 +9,13 @@ import { v4 as uuidv4 } from 'uuid';
 import { RootState } from '../store';
 import { cn } from '../lib/utils';
 
-// --- PDF & Download Libraries ---
-import * as pdfjsLib from 'pdfjs-dist'; // Use main package import
-// Attempt to import TextItem type directly (might depend on package structure/exports)
-// If this specific path fails, pdfjsLib.TextItem might not be directly exposed,
-// or you might need a type-only import if available, or use an inline type.
-// We'll try this first. If it errors, use an inline type like { str: string } below.
+import * as pdfjsLib from 'pdfjs-dist'; 
 
 import jsPDF from 'jspdf';
 
 // --- PDFjs Worker Configuration ---
 // Use the imported pdfjsLib object to get the version for the CDN path
-pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+pdfjsLib.GlobalWorkerOptions.workerSrc = `/pdf.worker.min.mjs`;
 
 
 // --- Type Definitions ---
